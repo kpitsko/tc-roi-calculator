@@ -23,14 +23,8 @@
 
     .tc-app{
       width:100%;
-      max-width:580px;
+      max-width:720px;
       margin:0 auto 28px;
-    }
-
-    .tc-section{
-      width:100%;
-      max-width:900px;
-      margin:28px auto 0;
     }
 
     .screen{display:none}
@@ -74,6 +68,9 @@
     }
     h3{
       font-size:18px;font-weight:900;color:#0d0a3d;line-height:1.25;margin:0 0 8px
+    }
+    h4{
+      font-size:16px;font-weight:800;color:#150d5d;line-height:1.3;margin:0 0 8px
     }
 
     .subtitle{
@@ -159,6 +156,25 @@
       font-family:inherit;text-decoration:underline;display:block;text-align:center;width:100%;margin-top:8px
     }
     .btn-ghost:hover{color:#6b7280}
+
+    .btn-download{
+      display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:14px;
+      background:#150d5d;color:#fff;border:2px solid rgba(255,255,255,.25);border-radius:10px;
+      padding:14px 24px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;
+      letter-spacing:.02em;transition:background .18s,border-color .18s,transform .1s
+    }
+    .btn-download:hover{background:#1e1580;border-color:rgba(255,255,255,.5);transform:scale(1.01)}
+    .btn-download:active{transform:scale(.99)}
+
+    .btn-download.secondary{
+      background:#f8f7ff;
+      color:#150d5d;
+      border:2px solid #ddd6ff;
+    }
+    .btn-download.secondary:hover{
+      background:#efeafe;
+      border-color:#c4b5fd;
+    }
 
     /* HubSpot */
     #hs-form-wrap .hs-form fieldset{max-width:none!important}
@@ -252,42 +268,17 @@
       font-size:11px;color:#9ca3af;line-height:1.55;margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f6
     }
 
-    .btn-download{
-      display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-bottom:14px;
-      background:#150d5d;color:#fff;border:2px solid rgba(255,255,255,.25);border-radius:10px;
-      padding:14px 24px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;
-      letter-spacing:.02em;transition:background .18s,border-color .18s,transform .1s
-    }
-    .btn-download:hover{background:#1e1580;border-color:rgba(255,255,255,.5);transform:scale(1.01)}
-    .btn-download:active{transform:scale(.99)}
-
-    .cta-block{
-      background:linear-gradient(135deg,#150d5d 0%,#2b1a96 100%);
-      border-radius:16px;padding:30px 28px;text-align:center;color:#fff
-    }
-    .cta-block h3{font-size:18px;font-weight:900;color:#fff;margin:0 0 8px;line-height:1.25}
-    .cta-block p{font-size:13px;color:#c0b8f0;line-height:1.55;margin-bottom:22px}
-    .btn-cta{
-      display:inline-block;background:#a5f3fc;color:#0d0a3d;font-weight:900;font-size:15px;padding:14px 36px;
-      border-radius:10px;text-decoration:none;transition:background .18s,transform .1s
-    }
-    .btn-cta:hover{background:#67e8f9;transform:scale(1.02)}
-
-    .restart-btn{
-      display:block;text-align:center;margin-top:18px;background:none;border:none;color:rgba(255,255,255,.35);
-      font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline
-    }
-    .restart-btn:hover{color:rgba(255,255,255,.6)}
-
-    .footnote{
-      margin-top:18px;font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;
-      padding:0 8px;max-width:900px;margin-left:auto;margin-right:auto
+    .community-section{
+      margin-top:28px;
+      padding-top:28px;
+      border-top:1px solid #ececf4;
     }
 
-    /* Community calculator */
-    .community-card{
-      background:#fff;color:#111827;border-radius:20px;padding:34px 34px 30px;
-      box-shadow:0 32px 72px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.06)
+    .community-intro{
+      font-size:14px;
+      color:#6b7280;
+      line-height:1.6;
+      margin-bottom:20px;
     }
 
     .community-grid{
@@ -326,9 +317,7 @@
     .chart-title{
       font-size:13px;font-weight:800;color:#150d5d;margin-bottom:14px
     }
-    .bar-row{
-      margin-bottom:14px;
-    }
+    .bar-row{margin-bottom:14px}
     .bar-row:last-child{margin-bottom:0}
     .bar-top{
       display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px
@@ -352,20 +341,28 @@
       font-size:12px;line-height:1.6;color:#6b7280;margin-top:12px
     }
 
-    .section-title{
-      color:#fff;
-      font-size:28px;
-      font-weight:900;
-      text-align:center;
-      margin:0 0 10px;
+    .cta-block{
+      background:linear-gradient(135deg,#150d5d 0%,#2b1a96 100%);
+      border-radius:16px;padding:30px 28px;text-align:center;color:#fff;
+      margin-top:24px;
     }
-    .section-subtitle{
-      color:rgba(255,255,255,.78);
-      font-size:15px;
-      line-height:1.6;
-      text-align:center;
-      max-width:760px;
-      margin:0 auto 18px;
+    .cta-block h3{font-size:18px;font-weight:900;color:#fff;margin:0 0 8px;line-height:1.25}
+    .cta-block p{font-size:13px;color:#c0b8f0;line-height:1.55;margin-bottom:22px}
+    .btn-cta{
+      display:inline-block;background:#a5f3fc;color:#0d0a3d;font-weight:900;font-size:15px;padding:14px 36px;
+      border-radius:10px;text-decoration:none;transition:background .18s,transform .1s
+    }
+    .btn-cta:hover{background:#67e8f9;transform:scale(1.02)}
+
+    .restart-btn{
+      display:block;text-align:center;margin-top:18px;background:none;border:none;color:rgba(255,255,255,.35);
+      font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline
+    }
+    .restart-btn:hover{color:rgba(255,255,255,.6)}
+
+    .footnote{
+      margin-top:18px;font-size:11px;color:rgba(255,255,255,.45);text-align:center;line-height:1.6;
+      padding:0 8px;max-width:900px;margin-left:auto;margin-right:auto
     }
 
     @media (max-width: 768px){
@@ -374,7 +371,7 @@
 
     @media (max-width: 480px){
       .tc-shell{padding:20px 12px 40px}
-      .card,.community-card{padding:28px 22px 26px}
+      .card{padding:28px 22px 26px}
       h1{font-size:23px}
       h2{font-size:20px}
       .plan-grid,.fee-row,.fee-toggle{grid-template-columns:1fr}
@@ -584,10 +581,94 @@
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            Download PDF Report
+            Download Portfolio PDF Report
           </button>
 
           <button class="btn-ghost" onclick="goTo('q3')">&larr; Back</button>
+
+          <div class="community-section">
+            <h3>Example Community Savings</h3>
+            <p class="community-intro">
+              For an example community, enter the number of units and its current annual budget for collections.
+              We’ll compare industry-standard outcomes against TechCollect’s modeled resolution rates to estimate annual savings.
+            </p>
+
+            <div class="community-grid">
+              <div class="input-group">
+                <label class="input-label" for="community-units">Number of Units in Community</label>
+                <input type="text" id="community-units" placeholder="e.g. 250" inputmode="numeric" autocomplete="off" />
+                <div class="error-msg" id="err-community-units">Please enter a valid number of units.</div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="community-budget">Current Annual Budget for Collections</label>
+                <div class="input-wrap">
+                  <span class="input-prefix-sym">$</span>
+                  <input type="text" id="community-budget" class="has-prefix" placeholder="e.g. 45,000" inputmode="decimal" autocomplete="off" />
+                </div>
+                <div class="error-msg" id="err-community-budget">Please enter a valid annual budget.</div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="calculateCommunitySavings()">Calculate Community Savings &rarr;</button>
+
+            <div id="community-results" class="community-result-wrap">
+              <div class="community-summary">
+                <div class="mini-stat">
+                  <div class="mini-label">Industry Standard</div>
+                  <div class="mini-value" id="industry-result">$0</div>
+                  <div class="mini-sub">Estimated remaining collections cost exposure</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="mini-label">With TechCollect</div>
+                  <div class="mini-value" id="techcollect-result">$0</div>
+                  <div class="mini-sub">Estimated remaining cost exposure after modeled resolution improvement</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="mini-label">Estimated Savings</div>
+                  <div class="mini-value" id="community-savings">$0</div>
+                  <div class="mini-sub">Potential annual savings for this community</div>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-title">Visual Comparison: Current Cost Exposure vs. TechCollect</div>
+
+                <div class="bar-row">
+                  <div class="bar-top">
+                    <div class="bar-label">Industry Standard</div>
+                    <div class="bar-value" id="industry-bar-label">$0</div>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill industry" id="industry-bar"></div>
+                  </div>
+                </div>
+
+                <div class="bar-row">
+                  <div class="bar-top">
+                    <div class="bar-label">TechCollect Modeled Outcome</div>
+                    <div class="bar-value" id="techcollect-bar-label">$0</div>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill techcollect" id="techcollect-bar"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="community-note" id="community-note">
+                Based on the numbers entered, this community could materially reduce collections-related cost exposure.
+              </div>
+
+              <button class="btn-download secondary" onclick="generateCommunityPDF()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Download Community Savings PDF
+              </button>
+            </div>
+          </div>
 
           <div class="cta-block">
             <h3>Want to learn how this is possible?</h3>
@@ -601,89 +682,6 @@
           </div>
 
           <button class="restart-btn" onclick="restart()">Restart calculator</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="tc-section">
-      <h2 class="section-title">Example Community Savings</h2>
-      <p class="section-subtitle">
-        Enter a single community’s unit count and its current annual collections budget.
-        We’ll compare a typical industry outcome against TechCollect’s modeled resolution rates
-        to estimate how much that association could save.
-      </p>
-
-      <div class="community-card">
-        <div class="wordmark">
-          <div class="wordmark-icon">TC</div>
-          <span class="wordmark-text">TechCollect Community Model</span>
-        </div>
-
-        <div class="community-grid">
-          <div class="input-group">
-            <label class="input-label" for="community-units">Number of Units in Community</label>
-            <input type="text" id="community-units" placeholder="e.g. 250" inputmode="numeric" autocomplete="off" />
-            <div class="error-msg" id="err-community-units">Please enter a valid number of units.</div>
-          </div>
-
-          <div class="input-group">
-            <label class="input-label" for="community-budget">Current Annual Budget for Collections</label>
-            <div class="input-wrap">
-              <span class="input-prefix-sym">$</span>
-              <input type="text" id="community-budget" class="has-prefix" placeholder="e.g. 45,000" inputmode="decimal" autocomplete="off" />
-            </div>
-            <div class="error-msg" id="err-community-budget">Please enter a valid annual budget.</div>
-          </div>
-        </div>
-
-        <button class="btn btn-primary" onclick="calculateCommunitySavings()">Calculate Community Savings &rarr;</button>
-
-        <div id="community-results" class="community-result-wrap">
-          <div class="community-summary">
-            <div class="mini-stat">
-              <div class="mini-label">Industry Standard</div>
-              <div class="mini-value" id="industry-result">$0</div>
-              <div class="mini-sub">Estimated cost after typical delinquency resolution performance</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-label">With TechCollect</div>
-              <div class="mini-value" id="techcollect-result">$0</div>
-              <div class="mini-sub">Estimated cost after TechCollect modeled resolution performance</div>
-            </div>
-            <div class="mini-stat">
-              <div class="mini-label">Estimated Savings</div>
-              <div class="mini-value" id="community-savings">$0</div>
-              <div class="mini-sub">Potential annual savings for this community</div>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-title">Visual Comparison: Current Cost Exposure vs. TechCollect</div>
-
-            <div class="bar-row">
-              <div class="bar-top">
-                <div class="bar-label">Industry Standard</div>
-                <div class="bar-value" id="industry-bar-label">$0</div>
-              </div>
-              <div class="bar-track">
-                <div class="bar-fill industry" id="industry-bar"></div>
-              </div>
-            </div>
-
-            <div class="bar-row">
-              <div class="bar-top">
-                <div class="bar-label">TechCollect Modeled Outcome</div>
-                <div class="bar-value" id="techcollect-bar-label">$0</div>
-              </div>
-              <div class="bar-track">
-                <div class="bar-fill techcollect" id="techcollect-bar"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="community-note" id="community-note">
-            Based on the numbers entered, this community could materially reduce collections-related cost exposure.
-          </div>
         </div>
       </div>
     </div>
@@ -715,7 +713,6 @@
       ftePerUnits: 10000,
       delinqRate: 0.0842,
 
-      /* Community comparison assumptions */
       industryResolutionRate: 0.58,
       techcollectResolutionRate: 0.86
     };
@@ -727,6 +724,14 @@
       lienFee: C.defLienProfit,
       legalFee: C.defLegalFee,
       companyName: ''
+    };
+
+    let communityState = {
+      units: 0,
+      budget: 0,
+      industryResidualCost: 0,
+      techcollectResidualCost: 0,
+      annualSavings: 0
     };
 
     const SCREENS = ['welcome', 'lead', 'q1', 'q3', 'results'];
@@ -945,7 +950,7 @@
         ) : row('Monthly Admin Fee (in addition to late fees)', 'No fee charged', '$0')}
         ${row(
           'Lien Profit',
-          `$${lienFee} × ~${lla.toLocaleString('en-US')} liens/yr`,
+          `$${lienFee} × ~${lla.toLocaleString('en-US')} liens/yr <small>(net of filing, labor, and attorney fees)</small>`,
           `${fmtFull(ent.lienAnnual)}`
         )}
         ${row(
@@ -1001,16 +1006,30 @@
         companyName: ''
       };
 
+      communityState = {
+        units: 0,
+        budget: 0,
+        industryResidualCost: 0,
+        techcollectResidualCost: 0,
+        annualSavings: 0
+      };
+
       document.getElementById('inp-units').value = '';
       document.getElementById('inp-monthly').value = C.defMonthlyFee;
       document.getElementById('inp-lien').value = C.defLienProfit;
       document.getElementById('inp-legal').value = C.defLegalFee;
 
+      document.getElementById('community-units').value = '';
+      document.getElementById('community-budget').value = '';
+      document.getElementById('community-results').classList.remove('active');
+      document.getElementById('industry-bar').style.width = '0%';
+      document.getElementById('techcollect-bar').style.width = '0%';
+
       document.getElementById('opt-yes').className = 'fee-opt';
       document.getElementById('opt-no').className = 'fee-opt';
       document.getElementById('fee-fields').classList.remove('open');
 
-      ['err-units','err-fee-choice','err-monthly','err-lien','err-legal'].forEach(id => {
+      ['err-units','err-fee-choice','err-monthly','err-lien','err-legal','err-community-units','err-community-budget'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('visible');
       });
@@ -1029,7 +1048,6 @@
       if (active.id === 'screen-q3') submitQ3();
     });
 
-    /* Community savings */
     function calculateCommunitySavings() {
       const units = parseNum(document.getElementById('community-units').value);
       const budget = parseNum(document.getElementById('community-budget').value);
@@ -1042,6 +1060,14 @@
       const industryResidualCost = budget * (1 - C.industryResolutionRate);
       const techcollectResidualCost = budget * (1 - C.techcollectResolutionRate);
       const annualSavings = industryResidualCost - techcollectResidualCost;
+
+      communityState = {
+        units,
+        budget,
+        industryResidualCost,
+        techcollectResidualCost,
+        annualSavings
+      };
 
       document.getElementById('industry-result').textContent = fmtFull(industryResidualCost);
       document.getElementById('techcollect-result').textContent = fmtFull(techcollectResidualCost);
@@ -1071,7 +1097,6 @@
       resultsWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    /* PDF */
     let _pdfLibsState = 'idle';
     let _pdfOnReady = null;
 
@@ -1242,7 +1267,168 @@
         columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
       });
 
-      doc.save(`TechCollect_ROI_${safeName}_${dateStr}.pdf`);
+      doc.save(`TechCollect_Portfolio_ROI_${safeName}_${dateStr}.pdf`);
+    }
+
+    function generateCommunityPDF() {
+      if (_pdfLibsState !== 'ready') {
+        loadPDFLibs(generateCommunityPDF);
+        return;
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert('PDF library not available. Please try again.');
+        return;
+      }
+      if (!communityState.units || !communityState.budget) {
+        alert('Please calculate community savings first.');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+      const PAGE_W = 210;
+      const MARGIN = 14;
+      const CONTENT = PAGE_W - MARGIN * 2;
+      const BRAND = '#150d5d';
+
+      function hexToRGB(hex) {
+        return [
+          parseInt(hex.slice(1,3),16),
+          parseInt(hex.slice(3,5),16),
+          parseInt(hex.slice(5,7),16)
+        ];
+      }
+      function setFill(hex) { doc.setFillColor(...hexToRGB(hex)); }
+      function setTextColor(hex) { doc.setTextColor(...hexToRGB(hex)); }
+      function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+      function pct(r) { return (r * 100).toFixed(2) + '%'; }
+
+      const company = (S.companyName || '').trim() || 'Your Company';
+      const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+      const safeName = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+
+      let y = 0;
+
+      setFill(BRAND);
+      doc.rect(0, 0, PAGE_W, 42, 'F');
+
+      setTextColor('#ffffff');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('TechCollect + ' + company, MARGIN, 16);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text('Example Community Savings Report', MARGIN, 25);
+
+      doc.setFontSize(9);
+      doc.setTextColor(200, 195, 240);
+      doc.text('Generated ' + today + ' · www.techcollect.ai', MARGIN, 34);
+
+      y = 52;
+      const cardW = (CONTENT - 6) / 3;
+
+      setFill('#f3f0ff');
+      doc.roundedRect(MARGIN, y, cardW, 30, 3, 3, 'F');
+      setTextColor('#5b21b6');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.text('INDUSTRY STANDARD', MARGIN + 5, y + 8);
+      setTextColor('#150d5d');
+      doc.setFontSize(15);
+      doc.text(money(communityState.industryResidualCost), MARGIN + 5, y + 19);
+
+      const x2 = MARGIN + cardW + 3;
+      setFill('#ede9fe');
+      doc.roundedRect(x2, y, cardW, 30, 3, 3, 'F');
+      setTextColor('#5b21b6');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.text('WITH TECHCOLLECT', x2 + 5, y + 8);
+      setTextColor('#150d5d');
+      doc.setFontSize(15);
+      doc.text(money(communityState.techcollectResidualCost), x2 + 5, y + 19);
+
+      const x3 = x2 + cardW + 3;
+      setFill('#150d5d');
+      doc.roundedRect(x3, y, cardW, 30, 3, 3, 'F');
+      setTextColor('#c4b5fd');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.text('ESTIMATED SAVINGS', x3 + 5, y + 8);
+      setTextColor('#ffffff');
+      doc.setFontSize(15);
+      doc.text(money(communityState.annualSavings), x3 + 5, y + 19);
+
+      y += 40;
+
+      setTextColor(BRAND);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Community Inputs', MARGIN, y);
+      y += 4;
+
+      doc.autoTable({
+        startY: y,
+        margin: { left: MARGIN, right: MARGIN },
+        tableWidth: CONTENT,
+        body: [
+          ['Units in Community', communityState.units.toLocaleString('en-US')],
+          ['Current Annual Budget for Collections', money(communityState.budget)],
+          ['Industry Standard Resolution Rate', pct(C.industryResolutionRate)],
+          ['TechCollect Modeled Resolution Rate', pct(C.techcollectResolutionRate)],
+          ['Estimated Savings Per Unit', '$' + (communityState.annualSavings / communityState.units).toFixed(2)]
+        ],
+        bodyStyles: { fontSize: 8.5, textColor: [40,40,80] },
+        columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
+      });
+
+      y = doc.lastAutoTable.finalY + 8;
+
+      setTextColor(BRAND);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Cost Exposure Comparison', MARGIN, y);
+      y += 8;
+
+      const barMax = Math.max(communityState.industryResidualCost, communityState.techcollectResidualCost, 1);
+      const barW = CONTENT - 50;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      setTextColor('#374151');
+      doc.text('Industry Standard', MARGIN, y);
+      setTextColor('#150d5d');
+      doc.text(money(communityState.industryResidualCost), PAGE_W - MARGIN, y, { align: 'right' });
+      y += 3;
+      doc.setFillColor(236,236,246);
+      doc.roundedRect(MARGIN, y, barW, 6, 3, 3, 'F');
+      doc.setFillColor(156,163,175);
+      doc.roundedRect(MARGIN, y, (communityState.industryResidualCost / barMax) * barW, 6, 3, 3, 'F');
+      y += 12;
+
+      setTextColor('#374151');
+      doc.text('TechCollect Modeled Outcome', MARGIN, y);
+      setTextColor('#150d5d');
+      doc.text(money(communityState.techcollectResidualCost), PAGE_W - MARGIN, y, { align: 'right' });
+      y += 3;
+      doc.setFillColor(236,236,246);
+      doc.roundedRect(MARGIN, y, barW, 6, 3, 3, 'F');
+      doc.setFillColor(21,13,93);
+      doc.roundedRect(MARGIN, y, (communityState.techcollectResidualCost / barMax) * barW, 6, 3, 3, 'F');
+      y += 16;
+
+      setTextColor('#555577');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(
+        `This example community model compares a typical industry-standard outcome with TechCollect's modeled resolution performance.`,
+        MARGIN, y, { maxWidth: CONTENT }
+      );
+
+      doc.save(`TechCollect_Community_Savings_${safeName}_${dateStr}.pdf`);
     }
   </script>
 </body>
