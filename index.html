@@ -851,7 +851,15 @@ let S = {
   lienFee:     C.defLienProfit,
   legalFee:    C.defLegalFee,
   companyName: '',
+  firstName:   '',
+  lastName:    '',
+  email:       '',
+  jobTitle:    '',
+  reportType:  'portfolio_roi_calculator',
 };
+
+let LAST_RESULTS = null;
+let _zapierSentForRun = false;
 
 /* ── Navigation ─────────────────────────────────────────────── */
 const SCREENS = ['welcome', 'lead', 'q1', 'q3', 'results'];
@@ -897,11 +905,22 @@ function loadHubSpotForm() {
       region: "na1",
       target: "#hs-form-wrap",
       onFormSubmitted: function(form, data) {
-        // Capture company name from form submission for PDF report
         try {
-          const vals = data && (data.submissionValues || data.data || {});
-          S.companyName = (vals.company || vals.Company || vals['0-2/company'] || '').trim();
-        } catch(e) { S.companyName = ''; }
+          const raw = data && (data.submissionValues || data.data || {});
+          const vals = normalizeHubSpotValues(raw);
+          S.companyName = (vals.company || '').trim();
+          S.firstName = (vals.firstname || vals.first_name || '').trim();
+          S.lastName = (vals.lastname || vals.last_name || '').trim();
+          S.email = (vals.email || '').trim();
+          S.jobTitle = (vals.jobtitle || vals.job_title || '').trim();
+        } catch(e) {
+          console.warn('Could not capture HubSpot submission values', e);
+          S.companyName = S.companyName || '';
+          S.firstName = S.firstName || '';
+          S.lastName = S.lastName || '';
+          S.email = S.email || '';
+          S.jobTitle = S.jobTitle || '';
+        }
         goTo('q1');
       }
     });
@@ -939,6 +958,128 @@ function showErr(id, show) {
   el.classList.toggle('visible', show);
 }
 
+function normalizeHubSpotValues(raw) {
+  const out = {};
+  if (!raw) return out;
+
+  if (Array.isArray(raw)) {
+    raw.forEach(item => {
+      if (!item) return;
+      const key = String(item.name || item.fieldName || item.propertyName || '').toLowerCase();
+      const value = item.value ?? item.fieldValue ?? '';
+      if (key) out[key] = String(value);
+    });
+    return out;
+  }
+
+  Object.keys(raw).forEach(key => {
+    const cleanKey = String(key).split('/').pop().toLowerCase();
+    const value = raw[key];
+    out[cleanKey] = value == null ? '' : String(value);
+  });
+  return out;
+}
+
+function buildZapierPayload() {
+  const units = Number(S.units || 0);
+  const monthlyFee = Number(S.monthlyFee || 0);
+  const lienFee = Number(S.lienFee || 0);
+  const legalFee = Number(S.legalFee || 0);
+  const results = LAST_RESULTS || {};
+  const ent = results.ent || {};
+  const def = results.def || {};
+
+  return {
+    email: S.email || '',
+    first_name: S.firstName || '',
+    last_name: S.lastName || '',
+    company: S.companyName || '',
+    job_title: S.jobTitle || '',
+
+    tc_doors_managed: units,
+    tc_charges_delinquency_fees: S.chargesFees === null ? '' : String(!!S.chargesFees),
+    tc_monthly_admin_fee: monthlyFee,
+    tc_lien_profit: lienFee,
+    tc_legal_transfer_fee: legalFee,
+
+    tc_enterprise_annual_value: Math.round(Number(ent.total || 0)),
+    tc_deferred_annual_value: Math.round(Number(def.total || 0)),
+    tc_enterprise_value_per_door: units ? Number((Number(ent.total || 0) / units).toFixed(2)) : 0,
+    tc_deferred_value_per_door: units ? Number((Number(def.total || 0) / units).toFixed(2)) : 0,
+    tc_example_community_units: '',
+    tc_example_community_budget: '',
+    tc_example_industry_cost_exposure: '',
+    tc_example_techcollect_cost_exposure: '',
+    tc_example_community_savings: '',
+    tc_example_savings_per_unit: '',
+    tc_calculator_last_run_date: new Date().toISOString(),
+    tc_sales_ready: 'true',
+    tc_report_type: S.reportType || 'portfolio_roi_calculator',
+
+    report_title: `TechCollect ROI Report - ${S.companyName || 'Your Company'}`,
+    report_text: [
+      `Company: ${S.companyName || ''}`,
+      `Contact: ${[S.firstName, S.lastName].filter(Boolean).join(' ')}`,
+      `Email: ${S.email || ''}`,
+      `Job Title: ${S.jobTitle || ''}`,
+      `Doors Managed: ${units}`,
+      `Charges Fees: ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}`,
+      `Monthly Collection Fee: ${monthlyFee}`,
+      `Lien Profit / Fee: ${lienFee}`,
+      `Legal Transfer Fee: ${legalFee}`,
+      `Enterprise Annual Value: ${Math.round(Number(ent.total || 0))}`,
+      `Deferred Annual Value: ${Math.round(Number(def.total || 0))}`,
+      `Enterprise Value Per Door: ${units ? (Number(ent.total || 0) / units).toFixed(2) : '0.00'}`,
+      `Deferred Value Per Door: ${units ? (Number(def.total || 0) / units).toFixed(2) : '0.00'}`
+    ].join('\n'),
+    report_html: `
+      <h1>TechCollect ROI Report</h1>
+      <p><strong>Company:</strong> ${escapeHtml(S.companyName || '')}</p>
+      <p><strong>Contact:</strong> ${escapeHtml([S.firstName, S.lastName].filter(Boolean).join(' '))}</p>
+      <p><strong>Email:</strong> ${escapeHtml(S.email || '')}</p>
+      <p><strong>Job Title:</strong> ${escapeHtml(S.jobTitle || '')}</p>
+      <hr>
+      <p><strong>Doors Managed:</strong> ${units.toLocaleString('en-US')}</p>
+      <p><strong>Charges Collection Fees:</strong> ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}</p>
+      <p><strong>Monthly Collection Fee:</strong> $${monthlyFee}</p>
+      <p><strong>Lien Profit / Fee:</strong> $${lienFee}</p>
+      <p><strong>Legal Transfer Fee:</strong> $${legalFee}</p>
+      <hr>
+      <p><strong>Enterprise Annual Value:</strong> $${Math.round(Number(ent.total || 0)).toLocaleString('en-US')}</p>
+      <p><strong>Deferred Annual Value:</strong> $${Math.round(Number(def.total || 0)).toLocaleString('en-US')}</p>
+      <p><strong>Enterprise Value Per Door:</strong> $${units ? (Number(ent.total || 0) / units).toFixed(2) : '0.00'}</p>
+      <p><strong>Deferred Value Per Door:</strong> $${units ? (Number(def.total || 0) / units).toFixed(2) : '0.00'}</p>
+    `
+  };
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia';
+
+function sendToZapier(payload) {
+  if (!payload || !payload.email) {
+    console.warn('Zapier payload missing email; skipping send.');
+    return;
+  }
+
+  fetch(ZAPIER_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    mode: 'no-cors'
+  })
+    .then(() => console.log('Zapier webhook sent'))
+    .catch(err => console.error('Zapier webhook failed', err));
+}
+
 /* ── Fee YES/NO toggle ───────────────────────────────────────── */
 function selectFees(yes) {
   S.chargesFees = yes;
@@ -961,6 +1102,8 @@ function submitQ3() {
   // Must have selected YES or NO
   if (S.chargesFees === null) { showErr('err-fee-choice', true); return; }
   showErr('err-fee-choice', false);
+
+  _zapierSentForRun = false;
 
   if (S.chargesFees) {
     const mf  = parse(document.getElementById('inp-monthly').value);
@@ -1155,6 +1298,12 @@ function renderResults() {
 
   document.getElementById('r-breakdown').innerHTML =
     breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee);
+
+  LAST_RESULTS = { ent, def };
+  if (!_zapierSentForRun) {
+    sendToZapier(buildZapierPayload());
+    _zapierSentForRun = true;
+  }
 }
 
 /* ── Accordion ───────────────────────────────────────────────── */
@@ -1172,7 +1321,14 @@ function restart() {
     lienFee:     C.defLienProfit,
     legalFee:    C.defLegalFee,
     companyName: '',
+    firstName:   '',
+    lastName:    '',
+    email:       '',
+    jobTitle:    '',
+    reportType:  'portfolio_roi_calculator',
   };
+  LAST_RESULTS = null;
+  _zapierSentForRun = false;
 
   document.getElementById('inp-units').value   = '';
   document.getElementById('inp-monthly').value = C.defMonthlyFee;
@@ -1438,42 +1594,5 @@ function generatePDF() {
 
 /* ── No eager init needed — HubSpot form loads on demand via goTo('lead') ── */
 </script>
-
-<script>
-// Remove trailing slash to avoid redirects/CORS issues
-const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia';
-
-function sendToZapier(payload){
-  // Use no-cors mode to bypass preflight so that requests can be sent even
-  // when embedded in environments (e.g. Elementor or GitHub Pages)
-  fetch(ZAPIER_WEBHOOK_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload),
-    mode:'no-cors'
-  })
-  .then(()=>console.log('Zapier sent'))
-  .catch(err=>console.error(err));
-}
-
-// auto fire when page has results values (safe fallback)
-window.addEventListener('load', function(){
-  setTimeout(function(){
-    try{
-      sendToZapier({
-        test:'auto fire',
-        time:new Date().toISOString()
-      });
-    }catch(e){}
-  },3000);
-});
-</script>
-
-<button style="position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 14px;background:#150d5d;color:white;border:none;border-radius:6px;"
-onclick="sendToZapier({test:'button click works',time:new Date().toISOString()}); alert('Webhook sent');">
-Test Zapier
-</button>
-
 </body>
-
 </html>
