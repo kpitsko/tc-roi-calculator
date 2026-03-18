@@ -1440,13 +1440,17 @@ function generatePDF() {
 </script>
 
 <script>
-const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
+// Remove trailing slash to avoid redirects/CORS issues
+const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia';
 
 function sendToZapier(payload){
-  fetch(ZAPIER_WEBHOOK_URL,{
+  // Use no-cors mode to bypass preflight so that requests can be sent even
+  // when embedded in environments (e.g. Elementor or GitHub Pages)
+  fetch(ZAPIER_WEBHOOK_URL, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    mode:'no-cors'
   })
   .then(()=>console.log('Zapier sent'))
   .catch(err=>console.error(err));
