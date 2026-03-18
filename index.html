@@ -498,20 +498,6 @@
       text-align: center; line-height: 1.6; padding: 0 8px;
     }
 
-    /* ─── Webhook status ─────────────────────────────────── */
-    .sync-status {
-      margin-top: 14px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 12px;
-      line-height: 1.45;
-      display: none;
-    }
-    .sync-status.visible { display: block; }
-    .sync-status.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-    .sync-status.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .sync-status.info { background: #f5f3ff; color: #4c1d95; border: 1px solid #ddd6fe; }
-
     /* ─── Mobile ─────────────────────────────────────────── */
     @media (max-width: 480px) {
       body { padding: 20px 12px 40px; }
@@ -765,8 +751,6 @@
         Download PDF Report
       </button>
 
-      <div id="sync-status" class="sync-status"></div>
-
       <!-- CTA -->
       <div class="cta-block">
         <h3>Want the exact breakdown for your portfolio?</h3>
@@ -860,8 +844,6 @@ const C = {
 };
 
 /* ── State ─────────────────────────────────────────────────── */
-const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
-
 let S = {
   units:       0,
   chargesFees: null,  // true = YES, false = NO
@@ -869,14 +851,6 @@ let S = {
   lienFee:     C.defLienProfit,
   legalFee:    C.defLegalFee,
   companyName: '',
-  firstName:   '',
-  lastName:    '',
-  email:       '',
-  jobTitle:    '',
-  reportType:  'html_summary',
-  webhookSent: false,
-  webhookError: '',
-  lastPayload: null,
 };
 
 /* ── Navigation ─────────────────────────────────────────────── */
@@ -923,20 +897,11 @@ function loadHubSpotForm() {
       region: "na1",
       target: "#hs-form-wrap",
       onFormSubmitted: function(form, data) {
+        // Capture company name from form submission for PDF report
         try {
           const vals = data && (data.submissionValues || data.data || {});
-          S.firstName = (vals.firstname || vals.first_name || vals.FirstName || '').trim();
-          S.lastName = (vals.lastname || vals.last_name || vals.LastName || '').trim();
-          S.email = (vals.email || vals.Email || '').trim();
           S.companyName = (vals.company || vals.Company || vals['0-2/company'] || '').trim();
-          S.jobTitle = (vals.jobtitle || vals.job_title || vals.JobTitle || '').trim();
-        } catch(e) {
-          S.firstName = '';
-          S.lastName = '';
-          S.email = '';
-          S.companyName = '';
-          S.jobTitle = '';
-        }
+        } catch(e) { S.companyName = ''; }
         goTo('q1');
       }
     });
@@ -1167,148 +1132,6 @@ function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
   `;
 }
 
-
-function buildResultsData() {
-  const { units, monthlyFee, lienFee, legalFee } = S;
-  const entNet = C.mgmtCharge - C.enterpriseTCFee;
-  const defNet = C.mgmtCharge - C.deferredTCFee;
-  const ent = calcPlan(units, monthlyFee, lienFee, legalFee, entNet);
-  const def = calcPlan(units, monthlyFee, lienFee, legalFee, defNet);
-  const chargesFeeText = S.chargesFees ? 'Yes' : 'No';
-
-  return {
-    lead: {
-      first_name: S.firstName || '',
-      last_name: S.lastName || '',
-      email: S.email || '',
-      company: S.companyName || '',
-      job_title: S.jobTitle || ''
-    },
-    calculator: {
-      tc_doors_managed: units,
-      tc_charges_delinquency_fees: chargesFeeText,
-      tc_monthly_admin_fee: monthlyFee,
-      tc_lien_profit: lienFee,
-      tc_legal_transfer_fee: legalFee,
-      tc_enterprise_annual_value: Math.round(ent.total),
-      tc_deferred_annual_value: Math.round(def.total),
-      tc_enterprise_value_per_door: Number((ent.total / units).toFixed(2)),
-      tc_deferred_value_per_door: Number((def.total / units).toFixed(2)),
-      tc_example_community_units: '',
-      tc_example_community_budget: '',
-      tc_example_industry_cost_exposure: '',
-      tc_example_techcollect_cost_exposure: '',
-      tc_example_community_savings: '',
-      tc_example_savings_per_unit: '',
-      tc_calculator_last_run_date: new Date().toISOString(),
-      tc_sales_ready: 'true',
-      tc_report_type: S.reportType
-    },
-    report: {
-      company_name: S.companyName || 'Your Company',
-      report_title: `TechCollect + ${S.companyName || 'Your Company'}`,
-      summary_text: [
-        `Managed doors: ${units.toLocaleString('en-US')}`,
-        `Charges collection fees today: ${chargesFeeText}`,
-        `Enterprise annual value: ${fmtFull(ent.total)}`,
-        `Deferred annual value: ${fmtFull(def.total)}`,
-        `Enterprise value per door: $${(ent.total / units).toFixed(2)}`,
-        `Deferred value per door: $${(def.total / units).toFixed(2)}`,
-        `Monthly collections fee used: ${fmtFull(monthlyFee)}`,
-        `Lien revenue per file used: ${fmtFull(lienFee)}`,
-        `Legal transfer fee used: ${fmtFull(legalFee)}`,
-        `Operational savings assumption: ${ent.assumedFTE} FTE x ${fmtFull(C.avgSalaryPerFTE)}/yr = ${fmtFull(ent.labor)}`
-      ].join('\n'),
-      html: `
-        <h1>TechCollect + ${escapeHtml(S.companyName || 'Your Company')}</h1>
-        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-        <h2>Lead</h2>
-        <p>${escapeHtml([S.firstName, S.lastName].filter(Boolean).join(' ') || 'Unknown')}<br>${escapeHtml(S.email || '')}<br>${escapeHtml(S.jobTitle || '')}<br>${escapeHtml(S.companyName || '')}</p>
-        <h2>Portfolio Inputs</h2>
-        <ul>
-          <li>Managed doors: ${units.toLocaleString('en-US')}</li>
-          <li>Charges collection fees today: ${chargesFeeText}</li>
-          <li>Monthly collections fee: ${fmtFull(monthlyFee)}</li>
-          <li>Lien revenue per file: ${fmtFull(lienFee)}</li>
-          <li>Legal transfer fee: ${fmtFull(legalFee)}</li>
-        </ul>
-        <h2>Results</h2>
-        <ul>
-          <li>Enterprise annual value: ${fmtFull(ent.total)} (${fmtDoor(ent.total, units)})</li>
-          <li>Deferred annual value: ${fmtFull(def.total)} (${fmtDoor(def.total, units)})</li>
-          <li>Operational savings: ${fmtFull(ent.labor)}</li>
-        </ul>
-      `.trim()
-    },
-    assumptions: {
-      delinquency_rate: C.delinqRate,
-      frequency: C.frequency,
-      file_months_factor: C.fileMonthsFactor,
-      lien_legal_factor: C.lienLegalFactor,
-      avg_salary_per_fte: C.avgSalaryPerFTE,
-      fte_per_units: C.ftePerUnits
-    },
-    breakdown: {
-      enterprise_tc_margin_annual: Math.round(ent.tcMarginAnnual),
-      enterprise_collection_fee_annual: Math.round(ent.collFeeAnnual),
-      enterprise_lien_annual: Math.round(ent.lienAnnual),
-      enterprise_legal_annual: Math.round(ent.legalAnnual),
-      enterprise_operational_savings_annual: Math.round(ent.labor),
-      deferred_tc_margin_annual: Math.round(def.tcMarginAnnual),
-      deferred_collection_fee_annual: Math.round(def.collFeeAnnual),
-      deferred_lien_annual: Math.round(def.lienAnnual),
-      deferred_legal_annual: Math.round(def.legalAnnual),
-      deferred_operational_savings_annual: Math.round(def.labor)
-    }
-  };
-}
-
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function setSyncStatus(type, message) {
-  const el = document.getElementById('sync-status');
-  if (!el) return;
-  el.className = 'sync-status visible ' + type;
-  el.textContent = message;
-}
-
-async function sendResultsToZapier() {
-  if (S.webhookSent) return;
-  if (!ZAPIER_WEBHOOK_URL || ZAPIER_WEBHOOK_URL.includes('https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/')) {
-    setSyncStatus('info', 'Webhook not connected yet. Paste your Zapier Catch Hook URL into ZAPIER_WEBHOOK_URL near the top of the script.');
-    return;
-  }
-
-  const payload = buildResultsData();
-  S.lastPayload = payload;
-
-  try {
-    setSyncStatus('info', 'Saving calculator results for follow-up...');
-    const res = await fetch(ZAPIER_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error(`Webhook failed with status ${res.status}`);
-
-    S.webhookSent = true;
-    S.webhookError = '';
-    setSyncStatus('success', 'Results saved successfully. Your Zapier workflow should now be able to create/update the HubSpot contact and store the report.');
-  } catch (err) {
-    S.webhookError = err && err.message ? err.message : 'Unknown webhook error';
-    console.error('Zapier webhook error:', err);
-    setSyncStatus('error', 'Results were calculated, but the Zapier webhook did not complete. Open browser console to inspect the error, then re-run the calculator after updating the webhook URL.');
-  }
-}
-
 /* ── Render results ──────────────────────────────────────────── */
 function renderResults() {
   const { units, monthlyFee, lienFee, legalFee } = S;
@@ -1332,8 +1155,6 @@ function renderResults() {
 
   document.getElementById('r-breakdown').innerHTML =
     breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee);
-
-  sendResultsToZapier();
 }
 
 /* ── Accordion ───────────────────────────────────────────────── */
@@ -1351,14 +1172,6 @@ function restart() {
     lienFee:     C.defLienProfit,
     legalFee:    C.defLegalFee,
     companyName: '',
-    firstName:   '',
-    lastName:    '',
-    email:       '',
-    jobTitle:    '',
-    reportType:  'html_summary',
-    webhookSent: false,
-    webhookError: '',
-    lastPayload: null,
   };
 
   document.getElementById('inp-units').value   = '';
@@ -1380,12 +1193,6 @@ function restart() {
   // Close accordion
   document.getElementById('acc-body').classList.remove('open');
   document.getElementById('acc-chevron').classList.remove('open');
-
-  const syncEl = document.getElementById('sync-status');
-  if (syncEl) {
-    syncEl.className = 'sync-status';
-    syncEl.textContent = '';
-  }
 
   goTo('welcome');
 }
@@ -1631,5 +1438,38 @@ function generatePDF() {
 
 /* ── No eager init needed — HubSpot form loads on demand via goTo('lead') ── */
 </script>
+
+<script>
+const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
+
+function sendToZapier(payload){
+  fetch(ZAPIER_WEBHOOK_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(()=>console.log('Zapier sent'))
+  .catch(err=>console.error(err));
+}
+
+// auto fire when page has results values (safe fallback)
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    try{
+      sendToZapier({
+        test:'auto fire',
+        time:new Date().toISOString()
+      });
+    }catch(e){}
+  },3000);
+});
+</script>
+
+<button style="position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 14px;background:#150d5d;color:white;border:none;border-radius:6px;"
+onclick="sendToZapier({test:'button click works',time:new Date().toISOString()}); alert('Webhook sent');">
+Test Zapier
+</button>
+
 </body>
+
 </html>
