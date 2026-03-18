@@ -733,7 +733,6 @@
       techcollectResolutionRate: 0.86
     };
 
-    // Replace this only if your current live Zapier Catch Hook URL is different.
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
     const GOOGLE_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/17pO6lFOMk8otHsQO7UR8LKr2X6sgh4k5?usp=drive_link';
 
@@ -769,7 +768,6 @@
         const el = document.getElementById('screen-' + n);
         if (el) el.classList.remove('active');
       });
-
       const target = document.getElementById('screen-' + name);
       if (target) target.classList.add('active');
 
@@ -876,29 +874,78 @@
     }
 
     function postToZapier(payload) {
-      try {
-        return fetch(ZAPIER_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          mode: 'cors',
-          body: JSON.stringify(payload)
-        })
-        .then(res => {
-          console.log('Zapier status:', res.status);
-          return res.text().catch(() => '');
-        })
-        .then(text => {
-          if (text) console.log('Zapier response:', text);
-          return true;
-        })
-        .catch(err => {
-          console.error('Zapier webhook failed', err);
-          return false;
-        });
-      } catch (err) {
+      return fetch(ZAPIER_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(async (res) => {
+        const text = await res.text().catch(() => '');
+        console.log('Zapier status:', res.status);
+        if (text) console.log('Zapier response:', text);
+        return { ok: res.ok, status: res.status, text };
+      })
+      .catch((err) => {
         console.error('Zapier webhook failed', err);
-        return Promise.resolve(false);
-      }
+        return { ok: false, status: 0, text: String(err) };
+      });
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const result = reader.result || '';
+          const base64 = String(result).includes(',')
+            ? String(result).split(',')[1]
+            : String(result);
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function sendPdfToZapier(doc, fileName, eventType) {
+      const pdfBlob = doc.output('blob');
+      const pdfBase64 = await blobToBase64(pdfBlob);
+
+      const payload = {
+        event_type: eventType,
+        drive_folder_url: GOOGLE_DRIVE_FOLDER_URL,
+        file_name: fileName,
+        mime_type: 'application/pdf',
+        pdf_base64: pdfBase64,
+
+        email: S.email || '',
+        first_name: S.firstName || '',
+        last_name: S.lastName || '',
+        company: S.companyName || '',
+        job_title: S.jobTitle || '',
+
+        tc_doors_managed: S.units || '',
+        tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
+        tc_monthly_admin_fee: S.monthlyFee || '',
+        tc_lien_profit: S.lienFee || '',
+        tc_legal_transfer_fee: S.legalFee || '',
+
+        tc_example_community_units: communityState.units || '',
+        tc_example_community_budget: communityState.budget || '',
+        tc_example_industry_cost_exposure: communityState.industryResidualCost || '',
+        tc_example_techcollect_cost_exposure: communityState.techcollectResidualCost || '',
+        tc_example_community_savings: communityState.annualSavings || '',
+        tc_example_savings_per_unit: communityState.units ? Number((communityState.annualSavings / communityState.units).toFixed(2)) : '',
+        generated_at: new Date().toISOString()
+      };
+
+      console.log('Sending PDF payload to Zapier:', {
+        event_type: payload.event_type,
+        file_name: payload.file_name,
+        has_pdf_base64: !!payload.pdf_base64,
+        pdf_base64_length: payload.pdf_base64 ? payload.pdf_base64.length : 0
+      });
+
+      return postToZapier(payload);
     }
 
     function selectFees(yes) {
@@ -997,7 +1044,9 @@
     }
 
     function staffingText(units, labor, assumedFTE) {
-      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${C.ftePerUnits.toLocaleString('en-US')} doors — rounded up). Estimated annual operational savings: <strong>${fmtFull(labor)}</strong>.`;
+      const savingsStr = fmtFull(labor);
+      const doorsPerFTE = C.ftePerUnits.toLocaleString('en-US');
+      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${doorsPerFTE} doors — rounded up). Automating the workflow end-to-end with TechCollect redirects those hours to higher-value work. Estimated annual operational savings: <strong>${savingsStr}</strong>.`;
     }
 
     function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
@@ -1148,40 +1197,6 @@
           <p><strong>Enterprise Annual Value:</strong> $${Math.round(Number(ent.total || 0)).toLocaleString('en-US')}</p>
           <p><strong>Deferred Annual Value:</strong> $${Math.round(Number(def.total || 0)).toLocaleString('en-US')}</p>
         `
-      };
-    }
-
-    function buildPdfPayload(doc, fileName, eventType) {
-      const dataUri = doc.output('datauristring');
-      const rawBase64 = dataUri.includes(',') ? dataUri.split(',')[1] : '';
-
-      return {
-        event_type: eventType,
-        drive_folder_url: GOOGLE_DRIVE_FOLDER_URL,
-
-        file_name: fileName,
-        mime_type: 'application/pdf',
-        pdf_data_uri: dataUri,
-        pdf_base64: rawBase64,
-
-        email: S.email || '',
-        first_name: S.firstName || '',
-        last_name: S.lastName || '',
-        company: S.companyName || '',
-        job_title: S.jobTitle || '',
-
-        tc_doors_managed: S.units || '',
-        tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
-        tc_monthly_admin_fee: S.monthlyFee || '',
-        tc_lien_profit: S.lienFee || '',
-        tc_legal_transfer_fee: S.legalFee || '',
-
-        tc_example_community_units: communityState.units || '',
-        tc_example_community_budget: communityState.budget || '',
-        tc_example_industry_cost_exposure: communityState.industryResidualCost || '',
-        tc_example_techcollect_cost_exposure: communityState.techcollectResidualCost || '',
-        tc_example_community_savings: communityState.annualSavings || '',
-        generated_at: new Date().toISOString()
       };
     }
 
@@ -1360,7 +1375,7 @@
       });
     }
 
-    function generatePDF() {
+    async function generatePDF() {
       if (_pdfLibsState !== 'ready') {
         loadPDFLibs(generatePDF);
         return;
@@ -1496,11 +1511,13 @@
       });
 
       const fileName = `TechCollect_Portfolio_ROI_${safeName}_${dateStr}.pdf`;
-      postToZapier(buildPdfPayload(doc, fileName, 'portfolio_pdf'));
+      sendPdfToZapier(doc, fileName, 'portfolio_pdf')
+        .catch(err => console.error('Portfolio PDF webhook failed', err));
+
       doc.save(fileName);
     }
 
-    function generateCommunityPDF() {
+    async function generateCommunityPDF() {
       if (_pdfLibsState !== 'ready') {
         loadPDFLibs(generateCommunityPDF);
         return;
@@ -1659,7 +1676,9 @@
       );
 
       const fileName = `TechCollect_Community_Savings_${safeName}_${dateStr}.pdf`;
-      postToZapier(buildPdfPayload(doc, fileName, 'community_pdf'));
+      sendPdfToZapier(doc, fileName, 'community_pdf')
+        .catch(err => console.error('Community PDF webhook failed', err));
+
       doc.save(fileName);
     }
   </script>
