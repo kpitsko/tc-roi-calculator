@@ -1281,7 +1281,7 @@ function setSyncStatus(type, message) {
 
 async function sendResultsToZapier() {
   if (S.webhookSent) return;
-  if (!ZAPIER_WEBHOOK_URL || ZAPIER_WEBHOOK_URL.includes('PASTE_YOUR_ZAPIER_WEBHOOK_URL_HERE')) {
+  if (!ZAPIER_WEBHOOK_URL || ZAPIER_WEBHOOK_URL.includes('https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/')) {
     setSyncStatus('info', 'Webhook not connected yet. Paste your Zapier Catch Hook URL into ZAPIER_WEBHOOK_URL near the top of the script.');
     return;
   }
