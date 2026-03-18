@@ -244,8 +244,7 @@
       font-size:13px;line-height:1.6;color:#374151;
     }
     .staffing-box .box-label{
-      font-size:10px;font-weight:700;
-      text-transform:uppercase;letter-spacing:.1em;
+      font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
       color:#5b4de0;margin-bottom:5px;
     }
 
@@ -394,7 +393,6 @@
 </head>
 <body>
   <div class="tc-shell">
-
     <div class="tc-app">
 
       <div id="screen-welcome" class="screen active">
@@ -581,7 +579,7 @@
 
           <div class="staffing-box">
             <div class="box-label">Operational Savings</div>
-            <div id="r-staffing-text">Loading&hellip;</div>
+            <div id="r-staffing-text">Loading…</div>
           </div>
 
           <div class="accordion">
@@ -735,7 +733,8 @@
       techcollectResolutionRate: 0.86
     };
 
-    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/up1u63u/';
+    // Replace this only if your current live Zapier Catch Hook URL is different.
+    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
     const GOOGLE_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/17pO6lFOMk8otHsQO7UR8LKr2X6sgh4k5?usp=drive_link';
 
     let S = {
@@ -770,6 +769,7 @@
         const el = document.getElementById('screen-' + n);
         if (el) el.classList.remove('active');
       });
+
       const target = document.getElementById('screen-' + name);
       if (target) target.classList.add('active');
 
@@ -851,6 +851,7 @@
         const value = raw[key];
         out[cleanKey] = value == null ? '' : String(value);
       });
+
       return out;
     }
 
@@ -872,6 +873,32 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function postToZapier(payload) {
+      try {
+        return fetch(ZAPIER_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          mode: 'cors',
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          console.log('Zapier status:', res.status);
+          return res.text().catch(() => '');
+        })
+        .then(text => {
+          if (text) console.log('Zapier response:', text);
+          return true;
+        })
+        .catch(err => {
+          console.error('Zapier webhook failed', err);
+          return false;
+        });
+      } catch (err) {
+        console.error('Zapier webhook failed', err);
+        return Promise.resolve(false);
+      }
     }
 
     function selectFees(yes) {
@@ -899,7 +926,6 @@
         return;
       }
       showErr('err-fee-choice', false);
-
       _zapierSentForRun = false;
 
       if (S.chargesFees) {
@@ -957,20 +983,21 @@
       if (n >= 1e6) return '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
       return '$' + Math.round(n).toLocaleString('en-US');
     }
+
     function fmtFull(n) {
       return '$' + Math.round(n).toLocaleString('en-US');
     }
+
     function fmtDoor(total, units) {
       return '$' + (total / units).toFixed(2) + ' / door / yr';
     }
+
     function fmtPct(rate) {
       return (rate * 100).toFixed(2) + '%';
     }
 
     function staffingText(units, labor, assumedFTE) {
-      const savingsStr = fmtFull(labor);
-      const doorsPerFTE = C.ftePerUnits.toLocaleString('en-US');
-      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${doorsPerFTE} doors — rounded up). Automating the workflow end-to-end with TechCollect redirects those hours to higher-value work. Estimated annual operational savings: <strong>${savingsStr}</strong>.`;
+      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${C.ftePerUnits.toLocaleString('en-US')} doors — rounded up). Estimated annual operational savings: <strong>${fmtFull(labor)}</strong>.`;
     }
 
     function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
@@ -1047,7 +1074,7 @@
       `;
     }
 
-    function buildZapierPayload() {
+    function buildResultsPayload() {
       const units = Number(S.units || 0);
       const monthlyFee = Number(S.monthlyFee || 0);
       const lienFee = Number(S.lienFee || 0);
@@ -1067,7 +1094,7 @@
         job_title: S.jobTitle || '',
 
         tc_doors_managed: units,
-        tc_charges_delinquency_fees: S.chargesFees === null ? '' : String(!!S.chargesFees),
+        tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
         tc_monthly_admin_fee: monthlyFee,
         tc_lien_profit: lienFee,
         tc_legal_transfer_fee: legalFee,
@@ -1085,7 +1112,6 @@
         tc_example_savings_per_unit: communityState.units ? Number((communityState.annualSavings / communityState.units).toFixed(2)) : '',
 
         tc_calculator_last_run_date: new Date().toISOString(),
-        tc_sales_ready: 'true',
         tc_report_type: S.reportType || 'portfolio_roi_calculator',
 
         report_title: `TechCollect ROI Report - ${S.companyName || 'Your Company'}`,
@@ -1101,12 +1127,11 @@
           `Legal Transfer Fee: ${legalFee}`,
           `Enterprise Annual Value: ${Math.round(Number(ent.total || 0))}`,
           `Deferred Annual Value: ${Math.round(Number(def.total || 0))}`,
-          `Enterprise Value Per Door: ${units ? (Number(ent.total || 0) / units).toFixed(2) : '0.00'}`,
-          `Deferred Value Per Door: ${units ? (Number(def.total || 0) / units).toFixed(2) : '0.00'}`,
           `Community Units: ${communityState.units || ''}`,
           `Community Budget: ${communityState.budget || ''}`,
           `Community Savings: ${communityState.annualSavings || ''}`
         ].join('\n'),
+
         report_html: `
           <h1>TechCollect ROI Report</h1>
           <p><strong>Company:</strong> ${escapeHtml(S.companyName || '')}</p>
@@ -1115,73 +1140,49 @@
           <p><strong>Job Title:</strong> ${escapeHtml(S.jobTitle || '')}</p>
           <hr>
           <p><strong>Doors Managed:</strong> ${units.toLocaleString('en-US')}</p>
-          <p><strong>Charges Collection Fees:</strong> ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}</p>
+          <p><strong>Charges Fees:</strong> ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}</p>
           <p><strong>Monthly Admin Fee:</strong> $${monthlyFee}</p>
           <p><strong>Lien Profit:</strong> $${lienFee}</p>
           <p><strong>Legal Transfer Fee:</strong> $${legalFee}</p>
           <hr>
           <p><strong>Enterprise Annual Value:</strong> $${Math.round(Number(ent.total || 0)).toLocaleString('en-US')}</p>
           <p><strong>Deferred Annual Value:</strong> $${Math.round(Number(def.total || 0)).toLocaleString('en-US')}</p>
-          <p><strong>Enterprise Value Per Door:</strong> $${units ? (Number(ent.total || 0) / units).toFixed(2) : '0.00'}</p>
-          <p><strong>Deferred Value Per Door:</strong> $${units ? (Number(def.total || 0) / units).toFixed(2) : '0.00'}</p>
         `
       };
     }
 
-    function sendToZapier(payload) {
-      if (!payload || !payload.email) {
-        console.warn('Zapier payload missing email; skipping send.');
-        return;
-      }
+    function buildPdfPayload(doc, fileName, eventType) {
+      const dataUri = doc.output('datauristring');
+      const rawBase64 = dataUri.includes(',') ? dataUri.split(',')[1] : '';
 
-      fetch(ZAPIER_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        mode: 'no-cors'
-      })
-      .then(() => console.log('Zapier webhook sent'))
-      .catch(err => console.error('Zapier webhook failed', err));
-    }
+      return {
+        event_type: eventType,
+        drive_folder_url: GOOGLE_DRIVE_FOLDER_URL,
 
-    function sendPdfToZapier(pdfBlob, fileName, reportKind) {
-      if (!pdfBlob) return;
+        file_name: fileName,
+        mime_type: 'application/pdf',
+        pdf_data_uri: dataUri,
+        pdf_base64: rawBase64,
 
-      const reader = new FileReader();
-      reader.onloadend = function() {
-        const base64 = String(reader.result || '').split(',')[1] || '';
+        email: S.email || '',
+        first_name: S.firstName || '',
+        last_name: S.lastName || '',
+        company: S.companyName || '',
+        job_title: S.jobTitle || '',
 
-        const payload = {
-          event_type: 'pdf_generated',
-          drive_folder_url: GOOGLE_DRIVE_FOLDER_URL,
-          report_kind: reportKind,
-          file_name: fileName,
-          mime_type: 'application/pdf',
-          pdf_base64: base64,
+        tc_doors_managed: S.units || '',
+        tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
+        tc_monthly_admin_fee: S.monthlyFee || '',
+        tc_lien_profit: S.lienFee || '',
+        tc_legal_transfer_fee: S.legalFee || '',
 
-          email: S.email || '',
-          first_name: S.firstName || '',
-          last_name: S.lastName || '',
-          company: S.companyName || '',
-          job_title: S.jobTitle || '',
-          tc_doors_managed: S.units || '',
-          tc_example_community_units: communityState.units || '',
-          tc_example_community_budget: communityState.budget || '',
-          tc_example_community_savings: communityState.annualSavings || '',
-          generated_at: new Date().toISOString()
-        };
-
-        fetch(ZAPIER_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          mode: 'no-cors'
-        })
-        .then(() => console.log('PDF sent to Zapier'))
-        .catch(err => console.error('PDF webhook failed', err));
+        tc_example_community_units: communityState.units || '',
+        tc_example_community_budget: communityState.budget || '',
+        tc_example_industry_cost_exposure: communityState.industryResidualCost || '',
+        tc_example_techcollect_cost_exposure: communityState.techcollectResidualCost || '',
+        tc_example_community_savings: communityState.annualSavings || '',
+        generated_at: new Date().toISOString()
       };
-
-      reader.readAsDataURL(pdfBlob);
     }
 
     function renderResults() {
@@ -1204,7 +1205,7 @@
       LAST_RESULTS = { ent, def };
 
       if (!_zapierSentForRun) {
-        sendToZapier(buildZapierPayload());
+        postToZapier(buildResultsPayload());
         _zapierSentForRun = true;
       }
     }
@@ -1319,11 +1320,6 @@
         `For a <strong>${units.toLocaleString('en-US')}-unit</strong> community with a current annual collections budget of <strong>${fmtFull(budget)}</strong>, ` +
         `this model estimates potential annual savings of <strong>${fmtFull(annualSavings)}</strong> ` +
         `or roughly <strong>$${savingsPerUnit.toFixed(2)} per unit</strong>, based on TechCollect’s modeled resolution performance versus industry-standard outcomes.`;
-
-      if (LAST_RESULTS && !_zapierSentForRun) {
-        sendToZapier(buildZapierPayload());
-        _zapierSentForRun = true;
-      }
 
       resultsWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -1499,10 +1495,8 @@
         columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
       });
 
-      const pdfBlob = doc.output('blob');
       const fileName = `TechCollect_Portfolio_ROI_${safeName}_${dateStr}.pdf`;
-
-      sendPdfToZapier(pdfBlob, fileName, 'portfolio');
+      postToZapier(buildPdfPayload(doc, fileName, 'portfolio_pdf'));
       doc.save(fileName);
     }
 
@@ -1664,10 +1658,8 @@
         MARGIN, y, { maxWidth: CONTENT }
       );
 
-      const pdfBlob = doc.output('blob');
       const fileName = `TechCollect_Community_Savings_${safeName}_${dateStr}.pdf`;
-
-      sendPdfToZapier(pdfBlob, fileName, 'community');
+      postToZapier(buildPdfPayload(doc, fileName, 'community_pdf'));
       doc.save(fileName);
     }
   </script>
