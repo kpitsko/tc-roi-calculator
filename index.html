@@ -734,8 +734,7 @@
     };
 
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/upmi1ia/';
-    const GOOGLE_DRIVE_FOLDER_ID = '17pO6lFOMk8otHsQO7UR8LKr2X6sgh4k5';
-    const GOOGLE_DRIVE_API_KEY = 'AIzaSyBCDcKrpDwWOAQhlzT0QrWK4ZbMb5BLNLk';
+    const UPLOAD_ENDPOINT = 'https://upload-pdf-921112727096.us-east1.run.app';
     const GOOGLE_DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/17pO6lFOMk8otHsQO7UR8LKr2X6sgh4k5?usp=drive_link';
 
     let S = {
@@ -908,100 +907,68 @@
       });
     }
 
-    async function uploadPDFToGoogleDrive(pdfBlob, fileName) {
-      try {
-        if (!window.gapi || !gapi.auth2 || !gapi.auth2.getAuthInstance()) {
-          console.warn('Google auth is not initialized; skipping direct Drive upload.');
-          return null;
-        }
-
-        const authInstance = gapi.auth2.getAuthInstance();
-        const currentUser = authInstance.currentUser.get();
-
-        if (!currentUser || !currentUser.isSignedIn()) {
-          console.warn('User is not signed into Google; skipping direct Drive upload.');
-          return null;
-        }
-
-        const authResponse = currentUser.getAuthResponse(true);
-        const accessToken = authResponse && authResponse.access_token;
-
-        if (!accessToken) {
-          console.warn('No Google access token found; skipping direct Drive upload.');
-          return null;
-        }
-
-        const metadata = {
-          name: fileName,
-          parents: [GOOGLE_DRIVE_FOLDER_ID],
-          mimeType: 'application/pdf'
-        };
-
-        const form = new FormData();
-        form.append(
-          'metadata',
-          new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-        );
-        form.append('file', pdfBlob, fileName);
-
-        const uploadResponse = await fetch(
-          `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&key=${GOOGLE_DRIVE_API_KEY}`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`
-            },
-            body: form
-          }
-        );
-
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text().catch(() => '');
-          throw new Error(`Upload failed: ${uploadResponse.status} ${errorText}`);
-        }
-
-        const file = await uploadResponse.json();
-        const fileId = file.id;
-
-        await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?key=${GOOGLE_DRIVE_API_KEY}`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              role: 'reader',
-              type: 'anyone'
-            })
-          }
-        );
-
-        return file.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
-      } catch (error) {
-        console.error('Failed to upload PDF to Google Drive:', error);
-        return null;
-      }
-    }
-
-    async function sendPdfToZapier(doc, fileName, eventType) {
-      const pdfBlob = doc.output('blob');
+    async function uploadPdfToCloudRun(pdfBlob, fileName, eventType) {
       const pdfBase64 = await blobToBase64(pdfBlob);
 
-      let pdfUrl = null;
+      const payload = {
+        fileName,
+        mimeType: 'application/pdf',
+        pdfBase64,
+        eventType,
+        generatedAt: new Date().toISOString(),
+        folderUrl: GOOGLE_DRIVE_FOLDER_URL,
+        lead: {
+          email: S.email || '',
+          firstName: S.firstName || '',
+          lastName: S.lastName || '',
+          company: S.companyName || '',
+          jobTitle: S.jobTitle || ''
+        },
+        calculator: {
+          doorsManaged: S.units || '',
+          chargesDelinquencyFees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
+          monthlyAdminFee: S.monthlyFee || '',
+          lienProfit: S.lienFee || '',
+          legalTransferFee: S.legalFee || ''
+        },
+        community: {
+          units: communityState.units || '',
+          budget: communityState.budget || '',
+          industryCostExposure: communityState.industryResidualCost || '',
+          techcollectCostExposure: communityState.techcollectResidualCost || '',
+          annualSavings: communityState.annualSavings || ''
+        }
+      };
+
+      const res = await fetch(UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const rawText = await res.text();
+      let json = null;
+
       try {
-        pdfUrl = await uploadPDFToGoogleDrive(pdfBlob, fileName);
-      } catch (err) {
-        console.error('Drive upload step failed:', err);
+        json = rawText ? JSON.parse(rawText) : null;
+      } catch (e) {
+        json = { raw: rawText };
       }
 
-      const payload = {
+      if (!res.ok) {
+        throw new Error(`Cloud Run upload failed: ${res.status} ${rawText}`);
+      }
+
+      console.log('Cloud Run upload response:', json);
+      return json;
+    }
+
+    function buildPdfEventPayload(eventType, fileName, uploadResponse) {
+      return {
         event_type: eventType,
         file_name: fileName,
         mime_type: 'application/pdf',
-        pdf_url: pdfUrl || '',
-        pdf_base64: pdfUrl ? '' : pdfBase64,
+        pdf_url: (uploadResponse && (uploadResponse.fileUrl || uploadResponse.webViewLink || uploadResponse.url)) || '',
         drive_folder_url: GOOGLE_DRIVE_FOLDER_URL,
 
         email: S.email || '',
@@ -1027,16 +994,22 @@
 
         generated_at: new Date().toISOString()
       };
+    }
 
-      console.log('Sending PDF payload to Zapier:', {
-        event_type: payload.event_type,
-        file_name: payload.file_name,
-        has_pdf_url: !!payload.pdf_url,
-        has_pdf_base64: !!payload.pdf_base64,
-        pdf_base64_length: payload.pdf_base64 ? payload.pdf_base64.length : 0
-      });
+    async function sendPdfWorkflow(doc, fileName, eventType) {
+      const pdfBlob = doc.output('blob');
 
-      return postToZapier(payload);
+      try {
+        const uploadResponse = await uploadPdfToCloudRun(pdfBlob, fileName, eventType);
+        await postToZapier(buildPdfEventPayload(eventType, fileName, uploadResponse));
+      } catch (err) {
+        console.error(`${eventType} upload workflow failed`, err);
+
+        await postToZapier({
+          ...buildPdfEventPayload(eventType, fileName, null),
+          pdf_upload_error: String(err)
+        });
+      }
     }
 
     function selectFees(yes) {
@@ -1602,8 +1575,9 @@
       });
 
       const fileName = `TechCollect_Portfolio_ROI_${safeName}_${dateStr}.pdf`;
-      sendPdfToZapier(doc, fileName, 'portfolio_pdf')
-        .catch(err => console.error('Portfolio PDF webhook failed', err));
+
+      sendPdfWorkflow(doc, fileName, 'portfolio_pdf')
+        .catch(err => console.error('Portfolio PDF workflow failed', err));
 
       doc.save(fileName);
     }
@@ -1767,8 +1741,9 @@
       );
 
       const fileName = `TechCollect_Community_Savings_${safeName}_${dateStr}.pdf`;
-      sendPdfToZapier(doc, fileName, 'community_pdf')
-        .catch(err => console.error('Community PDF webhook failed', err));
+
+      sendPdfWorkflow(doc, fileName, 'community_pdf')
+        .catch(err => console.error('Community PDF workflow failed', err));
 
       doc.save(fileName);
     }
