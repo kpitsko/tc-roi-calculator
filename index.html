@@ -757,7 +757,6 @@
       Estimates assume 8.42% national average delinquency rate, 2× annual
       occurrence frequency, and TechCollect’s AI resolution waterfall
       (48% industry average vs. 90% TechCollect modeled resolution rate).
-      Staffing savings assume 1 FTE per 10,000 doors at $50,000/yr avg salary.
       Community savings view uses a modeled comparison between industry-standard recovery performance and TechCollect’s resolution rates.
       Actual results may vary.
     </div>
@@ -1155,7 +1154,7 @@
       const assumedFTE = Math.ceil(units / C.ftePerUnits);
       const labor = assumedFTE * C.avgSalaryPerFTE;
 
-      const total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual + labor;
+      const total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual;
 
       return {
         total,
@@ -1244,11 +1243,6 @@
           'Legal Transfer Revenue',
           `$${legalFee} × ~${lla.toLocaleString('en-US')} legal transfers/yr`,
           fmtFull(ent.legalAnnual)
-        )}
-        ${row(
-          'Operational Savings — Staffing Automation',
-          `${ent.assumedFTE} FTE${ent.assumedFTE !== 1 ? 's' : ''} × $${C.avgSalaryPerFTE.toLocaleString('en-US')}/yr`,
-          fmtFull(ent.labor)
         )}
         ${totalRow('Enterprise Annual Total', fmtFull(ent.total))}
         ${totalRow('Deferred Annual Total', fmtFull(def.total))}
@@ -1538,7 +1532,6 @@
           ['Monthly Admin Fee (in addition to late fees)', money(ent.collFeeAnnual), money(def.collFeeAnnual)],
           ['Lien Profit (net of filing, labor, and attorney fees)', money(ent.lienAnnual), money(def.lienAnnual)],
           ['Legal Transfer Revenue', money(ent.legalAnnual), money(def.legalAnnual)],
-          ['Operational Savings (FTE)', money(ent.labor), money(def.labor)]
         ],
         foot: [['Total Estimated Value', money(ent.total), money(def.total)]],
         headStyles: { fillColor: hexToRGB(BRAND), textColor: [255,255,255], fontStyle: 'bold', fontSize: 9 },
@@ -1563,8 +1556,6 @@
           ['Managed Doors', S.units.toLocaleString('en-US')],
           ['Delinquency Rate', pct(C.delinqRate)],
           ['Recurrence Frequency', C.frequency + '× per year'],
-          ['Assumed FTE on AR', ent.assumedFTE + ' FTE'],
-          ['Avg Salary per FTE', money(C.avgSalaryPerFTE) + '/yr']
         ],
         bodyStyles: { fontSize: 8.5, textColor: [40,40,80] },
         columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
