@@ -235,17 +235,57 @@
     .enterprise .plan-per-door{background:rgba(165,243,252,.12);color:#a5f3fc}
     .deferred .plan-per-door{background:rgba(21,13,93,.1);color:#150d5d}
 
-    .staffing-box{
+    .comparison-box{
       background:#f8f7ff;
       border:1px solid #ddd6ff;
       border-radius:12px;
       padding:14px 18px;
       margin-bottom:14px;
-      font-size:13px;line-height:1.6;color:#374151;
     }
-    .staffing-box .box-label{
+    .comparison-box .box-label{
       font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
-      color:#5b4de0;margin-bottom:5px;
+      color:#5b4de0;margin-bottom:10px;
+    }
+    .comparison-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    .comparison-card{
+      border-radius:12px;
+      padding:14px 12px;
+      text-align:center;
+    }
+    .comparison-card.industry{
+      background:#f3f4f6;
+      border:1px solid #e5e7eb;
+    }
+    .comparison-card.techcollect{
+      background:#eeebff;
+      border:1px solid #ddd6ff;
+    }
+    .comparison-title{
+      font-size:10px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:#6b7280;
+      margin-bottom:6px;
+    }
+    .comparison-card.techcollect .comparison-title{
+      color:#5b4de0;
+    }
+    .comparison-value{
+      font-size:28px;
+      font-weight:900;
+      line-height:1;
+      color:#150d5d;
+      margin-bottom:4px;
+    }
+    .comparison-sub{
+      font-size:11px;
+      line-height:1.4;
+      color:#6b7280;
     }
 
     .accordion{
@@ -379,7 +419,7 @@
     }
 
     @media (max-width: 768px){
-      .community-grid,.community-summary{grid-template-columns:1fr}
+      .community-grid,.community-summary,.comparison-grid{grid-template-columns:1fr}
     }
 
     @media (max-width: 480px){
@@ -567,19 +607,30 @@
               <div class="plan-name">Enterprise Plan</div>
               <div class="plan-value" id="r-ent-value">&mdash;</div>
               <div class="plan-desc">Annual value to your<br>management company</div>
-              <div class="plan-per-door" id="r-ent-door">&mdash; / door / yr</div>
+              <div class="plan-per-door" id="r-ent-door">&mdash; / unit / mo</div>
             </div>
             <div class="plan-card deferred">
               <div class="plan-name">Deferred Plan</div>
               <div class="plan-value" id="r-def-value">&mdash;</div>
               <div class="plan-desc">Annual value to your<br>management company</div>
-              <div class="plan-per-door" id="r-def-door">&mdash; / door / yr</div>
+              <div class="plan-per-door" id="r-def-door">&mdash; / unit / mo</div>
             </div>
           </div>
 
-          <div class="staffing-box">
-            <div class="box-label">Operational Savings</div>
-            <div id="r-staffing-text">Loading…</div>
+          <div class="comparison-box">
+            <div class="box-label">Resolution Rate Comparison</div>
+            <div class="comparison-grid">
+              <div class="comparison-card industry">
+                <div class="comparison-title">Industry Average</div>
+                <div class="comparison-value">48%</div>
+                <div class="comparison-sub">Modeled resolution rate</div>
+              </div>
+              <div class="comparison-card techcollect">
+                <div class="comparison-title">TechCollect Modeled Rate</div>
+                <div class="comparison-value">90%</div>
+                <div class="comparison-sub">Modeled resolution rate</div>
+              </div>
+            </div>
           </div>
 
           <div class="accordion">
@@ -606,8 +657,7 @@
           <div class="community-section">
             <h3>Example Community Savings</h3>
             <p class="community-intro">
-              For an example community, enter the number of units and its current annual budget for collections.
-              We’ll compare industry-standard outcomes against TechCollect’s modeled resolution rates to estimate annual savings.
+              To see how much a typical community will save, enter the number of units and its current annual budget for collections. We’ll compare industry-standard outcomes against TechCollect’s modeled resolution rates to estimate annual savings.
             </p>
 
             <div class="community-grid">
@@ -706,9 +756,9 @@
     <div class="footnote">
       Estimates assume 8.42% national average delinquency rate, 2× annual
       occurrence frequency, and TechCollect’s AI resolution waterfall
-      (48% → 16% → 10% → 14% → 12% to legal). Staffing savings assume
-      1 FTE per 10,000 doors at $50,000/yr avg salary. Community savings view uses a modeled
-      comparison between industry-standard recovery performance and TechCollect’s resolution rates.
+      (48% industry average vs. 90% TechCollect modeled resolution rate).
+      Staffing savings assume 1 FTE per 10,000 doors at $50,000/yr avg salary.
+      Community savings view uses a modeled comparison between industry-standard recovery performance and TechCollect’s resolution rates.
       Actual results may vary.
     </div>
   </div>
@@ -729,8 +779,8 @@
       avgSalaryPerFTE: 50000,
       ftePerUnits: 10000,
       delinqRate: 0.0842,
-      industryResolutionRate: 0.58,
-      techcollectResolutionRate: 0.86
+      industryResolutionRate: 0.48,
+      techcollectResolutionRate: 0.90
     };
 
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/up1u63u/';
@@ -1129,18 +1179,12 @@
       return '$' + Math.round(n).toLocaleString('en-US');
     }
 
-    function fmtDoor(total, units) {
-      return '$' + (total / units).toFixed(2) + ' / door / yr';
+    function fmtUnitMo(total, units) {
+      return '$' + (total / units / 12).toFixed(2) + ' / unit / mo';
     }
 
     function fmtPct(rate) {
       return (rate * 100).toFixed(2) + '%';
-    }
-
-    function staffingText(units, labor, assumedFTE) {
-      const savingsStr = fmtFull(labor);
-      const doorsPerFTE = C.ftePerUnits.toLocaleString('en-US');
-      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${doorsPerFTE} doors — rounded up). Automating the workflow end-to-end with TechCollect redirects those hours to higher-value work. Estimated annual operational savings: <strong>${savingsStr}</strong>.`;
     }
 
     function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
@@ -1229,9 +1273,8 @@
       document.getElementById('r-doors-label').textContent = units.toLocaleString('en-US') + ' doors';
       document.getElementById('r-ent-value').textContent = fmtBig(ent.total);
       document.getElementById('r-def-value').textContent = fmtBig(def.total);
-      document.getElementById('r-ent-door').textContent = fmtDoor(ent.total, units);
-      document.getElementById('r-def-door').textContent = fmtDoor(def.total, units);
-      document.getElementById('r-staffing-text').innerHTML = staffingText(units, ent.labor, ent.assumedFTE);
+      document.getElementById('r-ent-door').textContent = fmtUnitMo(ent.total, units);
+      document.getElementById('r-def-door').textContent = fmtUnitMo(def.total, units);
       document.getElementById('r-breakdown').innerHTML = breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee);
 
       LAST_RESULTS = { ent, def };
