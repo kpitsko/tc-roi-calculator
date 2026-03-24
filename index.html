@@ -235,31 +235,18 @@
     .enterprise .plan-per-door{background:rgba(165,243,252,.12);color:#a5f3fc}
     .deferred .plan-per-door{background:rgba(21,13,93,.1);color:#150d5d}
 
-    .comparison-card{
-      background:#fbfbfe;border:1px solid #ececf4;border-radius:14px;padding:18px 18px 16px;margin-bottom:18px
+    .staffing-box{
+      background:#f8f7ff;
+      border:1px solid #ddd6ff;
+      border-radius:12px;
+      padding:14px 18px;
+      margin-bottom:14px;
+      font-size:13px;line-height:1.6;color:#374151;
     }
-    .comparison-title{
-      font-size:13px;font-weight:800;color:#150d5d;margin-bottom:14px
+    .staffing-box .box-label{
+      font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+      color:#5b4de0;margin-bottom:5px;
     }
-    .comparison-row{margin-bottom:14px}
-    .comparison-row:last-child{margin-bottom:0}
-    .comparison-top{
-      display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px
-    }
-    .comparison-label{
-      font-size:12px;font-weight:700;color:#374151
-    }
-    .comparison-value{
-      font-size:12px;font-weight:800;color:#150d5d
-    }
-    .comparison-track{
-      width:100%;height:18px;background:#ececf6;border-radius:999px;overflow:hidden;position:relative
-    }
-    .comparison-fill{
-      height:100%;border-radius:999px;transition:width .7s ease
-    }
-    .comparison-fill.industry{width:48%;background:linear-gradient(90deg,#c7c9d8 0%, #9ca3af 100%)}
-    .comparison-fill.techcollect{width:90%;background:linear-gradient(90deg,#6d5ce8 0%, #150d5d 100%)}
 
     .accordion{
       border:1px solid #e9e9f0;border-radius:12px;margin-bottom:20px;overflow:hidden
@@ -475,13 +462,13 @@
           </div>
 
           <div class="step-label">Question 1 of 2</div>
-          <h2>How many homes or units do you manage?</h2>
+          <h2>How many homes or doors do you manage?</h2>
           <p class="subtitle">
             Total units under management across your entire portfolio.
           </p>
 
           <div class="input-group">
-            <label class="input-label" for="inp-units">Total Homes / Units Managed</label>
+            <label class="input-label" for="inp-units">Total Homes / Doors Managed</label>
             <input type="text" id="inp-units" placeholder="e.g. 50,000" inputmode="numeric" autocomplete="off" />
             <div class="error-msg" id="err-units">Please enter a valid number of units (minimum 1).</div>
           </div>
@@ -580,38 +567,19 @@
               <div class="plan-name">Enterprise Plan</div>
               <div class="plan-value" id="r-ent-value">&mdash;</div>
               <div class="plan-desc">Annual value to your<br>management company</div>
-              <div class="plan-per-door" id="r-ent-door">&mdash; / unit / mo</div>
+              <div class="plan-per-door" id="r-ent-door">&mdash; / door / yr</div>
             </div>
             <div class="plan-card deferred">
               <div class="plan-name">Deferred Plan</div>
               <div class="plan-value" id="r-def-value">&mdash;</div>
               <div class="plan-desc">Annual value to your<br>management company</div>
-              <div class="plan-per-door" id="r-def-door">&mdash; / unit / mo</div>
+              <div class="plan-per-door" id="r-def-door">&mdash; / door / yr</div>
             </div>
           </div>
 
-          <div class="comparison-card">
-            <div class="comparison-title">Modeled Resolution Rate Comparison</div>
-
-            <div class="comparison-row">
-              <div class="comparison-top">
-                <div class="comparison-label">Industry Average</div>
-                <div class="comparison-value">48%</div>
-              </div>
-              <div class="comparison-track">
-                <div class="comparison-fill industry"></div>
-              </div>
-            </div>
-
-            <div class="comparison-row">
-              <div class="comparison-top">
-                <div class="comparison-label">TechCollect Modeled Outcome</div>
-                <div class="comparison-value">90%</div>
-              </div>
-              <div class="comparison-track">
-                <div class="comparison-fill techcollect"></div>
-              </div>
-            </div>
+          <div class="staffing-box">
+            <div class="box-label">Operational Savings</div>
+            <div id="r-staffing-text">Loading…</div>
           </div>
 
           <div class="accordion">
@@ -638,7 +606,7 @@
           <div class="community-section">
             <h3>Example Community Savings</h3>
             <p class="community-intro">
-              To see how much a typical community will save, enter the number of units and its current annual budget for collections.
+              For an example community, enter the number of units and its current annual budget for collections.
               We’ll compare industry-standard outcomes against TechCollect’s modeled resolution rates to estimate annual savings.
             </p>
 
@@ -736,7 +704,12 @@
     </div>
 
     <div class="footnote">
-      Estimates assume 8.42% national average delinquency rate and 2× annual occurrence frequency. Community savings view uses a modeled comparison between industry-standard recovery performance at 48% and TechCollect’s modeled resolution rate at 90%. Actual results may vary.
+      Estimates assume 8.42% national average delinquency rate, 2× annual
+      occurrence frequency, and TechCollect’s AI resolution waterfall
+      (48% → 16% → 10% → 14% → 12% to legal). Staffing savings assume
+      1 FTE per 10,000 doors at $50,000/yr avg salary. Community savings view uses a modeled
+      comparison between industry-standard recovery performance and TechCollect’s resolution rates.
+      Actual results may vary.
     </div>
   </div>
 
@@ -756,8 +729,8 @@
       avgSalaryPerFTE: 50000,
       ftePerUnits: 10000,
       delinqRate: 0.0842,
-      industryResolutionRate: 0.48,
-      techcollectResolutionRate: 0.90
+      industryResolutionRate: 0.58,
+      techcollectResolutionRate: 0.86
     };
 
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/up1u63u/';
@@ -962,8 +935,6 @@
         tc_deferred_annual_value: Math.round(Number(def.total || 0)),
         tc_enterprise_value_per_door: units ? Number((Number(ent.total || 0) / units).toFixed(2)) : 0,
         tc_deferred_value_per_door: units ? Number((Number(def.total || 0) / units).toFixed(2)) : 0,
-        tc_enterprise_value_per_unit_per_month: units ? Number((Number(ent.total || 0) / units / 12).toFixed(2)) : 0,
-        tc_deferred_value_per_unit_per_month: units ? Number((Number(def.total || 0) / units / 12).toFixed(2)) : 0,
 
         tc_example_community_units: communityState.units || '',
         tc_example_community_budget: communityState.budget || '',
@@ -989,8 +960,6 @@
           `Legal Transfer Fee: ${legalFee}`,
           `Enterprise Annual Value: ${Math.round(Number(ent.total || 0))}`,
           `Deferred Annual Value: ${Math.round(Number(def.total || 0))}`,
-          `Enterprise Value Per Unit Per Month: ${units ? (Number(ent.total || 0) / units / 12).toFixed(2) : '0.00'}`,
-          `Deferred Value Per Unit Per Month: ${units ? (Number(def.total || 0) / units / 12).toFixed(2) : '0.00'}`,
           `Community Units: ${communityState.units || ''}`,
           `Community Budget: ${communityState.budget || ''}`,
           `Community Savings: ${communityState.annualSavings || ''}`
@@ -1011,8 +980,6 @@
           <hr>
           <p><strong>Enterprise Annual Value:</strong> $${Math.round(Number(ent.total || 0)).toLocaleString('en-US')}</p>
           <p><strong>Deferred Annual Value:</strong> $${Math.round(Number(def.total || 0)).toLocaleString('en-US')}</p>
-          <p><strong>Enterprise Value Per Unit / Month:</strong> $${units ? (Number(ent.total || 0) / units / 12).toFixed(2) : '0.00'}</p>
-          <p><strong>Deferred Value Per Unit / Month:</strong> $${units ? (Number(def.total || 0) / units / 12).toFixed(2) : '0.00'}</p>
         `
       };
     }
@@ -1047,8 +1014,6 @@
         tc_deferred_annual_value: Math.round(Number(def.total || 0)),
         tc_enterprise_value_per_door: S.units ? Number((Number(ent.total || 0) / S.units).toFixed(2)) : 0,
         tc_deferred_value_per_door: S.units ? Number((Number(def.total || 0) / S.units).toFixed(2)) : 0,
-        tc_enterprise_value_per_unit_per_month: S.units ? Number((Number(ent.total || 0) / S.units / 12).toFixed(2)) : 0,
-        tc_deferred_value_per_unit_per_month: S.units ? Number((Number(def.total || 0) / S.units / 12).toFixed(2)) : 0,
 
         tc_example_community_units: communityState.units || '',
         tc_example_community_budget: communityState.budget || '',
@@ -1165,13 +1130,18 @@
     }
 
     function fmtDoor(total, units) {
-      return '$' + (total / units / 12).toFixed(2) + ' / unit / mo';
+      return '$' + (total / units).toFixed(2) + ' / door / yr';
     }
 
     function fmtPct(rate) {
       return (rate * 100).toFixed(2) + '%';
     }
 
+    function staffingText(units, labor, assumedFTE) {
+      const savingsStr = fmtFull(labor);
+      const doorsPerFTE = C.ftePerUnits.toLocaleString('en-US');
+      return `Based on <strong>${units.toLocaleString('en-US')} doors</strong>, TechCollect assumes <strong>${assumedFTE} FTE${assumedFTE !== 1 ? 's' : ''}</strong> on collections (1 per ${doorsPerFTE} doors — rounded up). Automating the workflow end-to-end with TechCollect redirects those hours to higher-value work. Estimated annual operational savings: <strong>${savingsStr}</strong>.`;
+    }
 
     function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
       const fmo = Math.round(ent.fileMonthsAnnual);
@@ -1261,6 +1231,7 @@
       document.getElementById('r-def-value').textContent = fmtBig(def.total);
       document.getElementById('r-ent-door').textContent = fmtDoor(ent.total, units);
       document.getElementById('r-def-door').textContent = fmtDoor(def.total, units);
+      document.getElementById('r-staffing-text').innerHTML = staffingText(units, ent.labor, ent.assumedFTE);
       document.getElementById('r-breakdown').innerHTML = breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee);
 
       LAST_RESULTS = { ent, def };
@@ -1505,7 +1476,7 @@
       setTextColor('#555577');
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Based on ${S.units.toLocaleString('en-US')} managed units`, MARGIN, y);
+      doc.text(`Based on ${S.units.toLocaleString('en-US')} managed doors`, MARGIN, y);
       y += 8;
 
       setTextColor(BRAND);
