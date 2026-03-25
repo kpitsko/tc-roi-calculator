@@ -1690,7 +1690,7 @@
         body: [
           ['Units in Community', communityState.units.toLocaleString('en-US')],
           ['Current Annual Collections Budget', money(communityState.budget)],
-          ['Modeled TechCollect Legal Fees', money(communityState.techcollectResidualCost)],
+          ['Modeled Annual Collections Budget', money(communityState.techcollectResidualCost)],
           ['Modeled Savings Rate', (getCommunityModeledSavingsRate() * 100).toFixed(0) + '%'],
           ['Estimated Savings Per Unit', '$' + (communityState.annualSavings / communityState.units).toFixed(2)]
         ],
