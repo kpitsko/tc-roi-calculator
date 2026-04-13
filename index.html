@@ -1,4 +1,4 @@
-<!-- Updated to match Excel Detail waterfall model – verified -->
+<!-- Updated: true waterfall model matching Excel Detail sheet – verified -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -322,6 +322,21 @@
       font-size:11px;color:#9ca3af;line-height:1.55;margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f6
     }
 
+    .wf-table{
+      width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:11px;
+    }
+    .wf-table th{
+      text-align:left;font-weight:700;color:#374151;padding:5px 6px;
+      border-bottom:2px solid #e5e5f0;font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+    }
+    .wf-table td{
+      padding:4px 6px;border-bottom:1px solid #f3f3f8;color:#6b7280;
+    }
+    .wf-table td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+    .wf-table .wf-resolved{color:#16a34a;font-weight:600}
+    .wf-table .wf-legal{color:#dc2626;font-weight:600}
+    .wf-table .wf-remaining{color:#374151;font-weight:700}
+
     .community-section{
       margin-top:28px;
       padding-top:28px;
@@ -623,12 +638,12 @@
             <div class="comparison-grid">
               <div class="comparison-card industry">
                 <div class="comparison-title">Industry Average</div>
-                <div class="comparison-value">48%</div>
+                <div class="comparison-value" id="r-industry-rate">48%</div>
                 <div class="comparison-sub">Modeled resolution rate</div>
               </div>
               <div class="comparison-card techcollect">
                 <div class="comparison-title">TechCollect Modeled Rate</div>
-                <div class="comparison-value">88%</div>
+                <div class="comparison-value" id="r-tc-rate">88%</div>
                 <div class="comparison-sub">120+ day cumulative resolution rate</div>
               </div>
             </div>
@@ -754,42 +769,55 @@
       </div>
     </div>
 
-    <div class="footnote">
-      Estimates assume 8.42% national average delinquency rate, 2&times; annual
-      occurrence frequency, and TechCollect's AI resolution waterfall
-      (48% industry average vs. 88% TechCollect modeled resolution rate).
-      Includes estimated labor savings of 1 FTE per 10,000 units.
-      Community savings view treats the entered annual collections budget as the current baseline and estimates the TechCollect outcome using the modeled legal-fee reduction from the spreadsheet example.
-      Actual results may vary.
-    </div>
+    <div class="footnote" id="footnote-text"></div>
   </div>
 
   <script>
-    // Updated to match Excel Detail waterfall model – verified
+    // ─── Waterfall model matching Excel Detail sheet ───
     const C = {
       mgmtCharge: 99,
       enterpriseTCFee: 35,
       deferredTCFee: 50,
       defMonthlyFee: 15,
-      defDemandFee: 0,
       defLienProfit: 275,
       defLegalFee: 150,
-      fileMonthsFactor: 0.180188,   // Derived from Excel waterfall: 1801.88 / 10000
-      demandFactor: 0.021892,       // Derived from Excel waterfall: 218.92 / 10000
-      lienLegalFactor: 0.010104,    // Derived from Excel waterfall: 101.04 / 10000
+      delinqRate: 0.0842,
       frequency: 2,
       avgSalaryPerFTE: 50000,
       ftePerUnits: 10000,
-      delinqRate: 0.0842,
       industryResolutionRate: 0.48,
-      techcollectResolutionRate: 0.88, // Excel waterfall: 48+16+10+14 = 88% resolved
       conventionalLegalCostExample: 19500,
-      techcollectLegalCostExample: 3390
+      techcollectLegalCostExample: 3390,
+
+      // TechCollect resolution waterfall — rates are % of original delinquencies
+      waterfall: [
+        { label: '31\u201360 Days',  rate: 0.48 },
+        { label: '61\u201390 Days',  rate: 0.16 },
+        { label: '91\u2013120 Days', rate: 0.10 },
+        { label: '121\u2013150 Days', rate: 0.14 },
+      ]
     };
+
+    // Derived: total TC resolution rate from waterfall
+    C.techcollectResolutionRate = C.waterfall.reduce(function (s, st) { return s + st.rate; }, 0);
+    // Derived: legal escalation rate
+    C.legalRate = +(1 - C.techcollectResolutionRate).toFixed(10);
 
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/20832059/up1u63u/';
     const GOOGLE_DRIVE_FOLDER_URL = '';
     const CLOUD_STORAGE_BUCKET_LABEL = 'techcollect-roi-pdfs';
+
+    // Set footnote dynamically from waterfall
+    document.getElementById('footnote-text').textContent =
+      'Estimates assume ' + (C.delinqRate * 100).toFixed(2) + '% national average delinquency rate, ' +
+      C.frequency + '\u00d7 annual occurrence frequency, and TechCollect\u2019s ' +
+      C.waterfall.length + '-stage AI resolution waterfall (' +
+      (C.industryResolutionRate * 100).toFixed(0) + '% industry average vs. ' +
+      Math.round(C.techcollectResolutionRate * 100) + '% TechCollect modeled resolution rate). ' +
+      'Includes estimated labor savings of 1 FTE per ' + C.ftePerUnits.toLocaleString('en-US') + ' units. ' +
+      'Community savings view treats the entered annual collections budget as the current baseline ' +
+      'and estimates the TechCollect outcome using the modeled legal-fee reduction from the spreadsheet example. ' +
+      'Actual results may vary.';
 
     let S = {
       units: 0,
@@ -818,12 +846,71 @@
 
     const SCREENS = ['welcome', 'lead', 'q1', 'q3', 'results'];
 
+    // ─── Waterfall engine ───
+    function runWaterfall(units) {
+      var delinquencies = units * C.delinqRate;
+      var remaining = delinquencies;
+      var totalFileMonths = 0;
+      var stages = [];
+
+      for (var i = 0; i < C.waterfall.length; i++) {
+        var st = C.waterfall[i];
+        var filesActive = remaining;
+        var resolved = delinquencies * st.rate;
+        totalFileMonths += filesActive;
+        remaining = remaining - resolved;
+        stages.push({
+          label: st.label,
+          rate: st.rate,
+          filesActive: filesActive,
+          resolved: resolved,
+          remaining: remaining
+        });
+      }
+
+      return {
+        delinquencies: delinquencies,
+        stages: stages,
+        totalFileMonths: totalFileMonths,
+        legalFiles: remaining,
+        resolutionRate: C.techcollectResolutionRate
+      };
+    }
+
+    function calcPlan(units, monthlyFee, lienFee, legalFee, netProfit) {
+      var wf = runWaterfall(units);
+
+      var tcMarginAnnual  = netProfit * wf.totalFileMonths * C.frequency;
+      var collFeeAnnual   = monthlyFee * wf.totalFileMonths * C.frequency;
+      var lienAnnual      = lienFee * wf.legalFiles * C.frequency;
+      var legalAnnual     = legalFee * wf.legalFiles * C.frequency;
+
+      var assumedFTE = Math.ceil(units / C.ftePerUnits);
+      var labor      = assumedFTE * C.avgSalaryPerFTE;
+
+      var total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual + labor;
+
+      return {
+        total: total,
+        tcMarginAnnual: tcMarginAnnual,
+        collFeeAnnual: collFeeAnnual,
+        lienAnnual: lienAnnual,
+        legalAnnual: legalAnnual,
+        labor: labor,
+        assumedFTE: assumedFTE,
+        wf: wf,
+        fileMonthsAnnual: wf.totalFileMonths * C.frequency,
+        legalFilesAnnual: wf.legalFiles * C.frequency
+      };
+    }
+
+    // ─── Navigation ───
     function goTo(name) {
-      SCREENS.forEach(n => {
-        const el = document.getElementById('screen-' + n);
+      SCREENS.forEach(function (n) {
+        var el = document.getElementById('screen-' + n);
         if (el) el.classList.remove('active');
       });
-      const target = document.getElementById('screen-' + name);
+      var target = document.getElementById('screen-' + name);
       if (target) target.classList.add('active');
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -832,10 +919,11 @@
       if (name === 'results') loadPDFLibs();
     }
 
-    let _hsFormLoaded = false;
+    // ─── HubSpot ───
+    var _hsFormLoaded = false;
 
     function loadHubSpotForm() {
-      const wrap = document.getElementById('hs-form-wrap');
+      var wrap = document.getElementById('hs-form-wrap');
       if (_hsFormLoaded) return;
       _hsFormLoaded = true;
 
@@ -852,8 +940,8 @@
           target: "#hs-form-wrap",
           onFormSubmitted: function(form, data) {
             try {
-              const raw = data && (data.submissionValues || data.data || {});
-              const vals = normalizeHubSpotValues(raw);
+              var raw = data && (data.submissionValues || data.data || {});
+              var vals = normalizeHubSpotValues(raw);
               S.companyName = (vals.company || '').trim();
               S.firstName = (vals.firstname || vals.first_name || '').trim();
               S.lastName = (vals.lastname || vals.last_name || '').trim();
@@ -872,7 +960,7 @@
         return;
       }
 
-      const script = document.createElement('script');
+      var script = document.createElement('script');
       script.charset = 'utf-8';
       script.type = 'text/javascript';
       script.src = 'https://js.hsforms.net/forms/embed/v2.js';
@@ -886,35 +974,36 @@
     }
 
     function normalizeHubSpotValues(raw) {
-      const out = {};
+      var out = {};
       if (!raw) return out;
 
       if (Array.isArray(raw)) {
-        raw.forEach(item => {
+        raw.forEach(function (item) {
           if (!item) return;
-          const key = String(item.name || item.fieldName || item.propertyName || '').toLowerCase();
-          const value = item.value ?? item.fieldValue ?? '';
+          var key = String(item.name || item.fieldName || item.propertyName || '').toLowerCase();
+          var value = item.value != null ? item.value : (item.fieldValue != null ? item.fieldValue : '');
           if (key) out[key] = String(value);
         });
         return out;
       }
 
-      Object.keys(raw).forEach(key => {
-        const cleanKey = String(key).split('/').pop().toLowerCase();
-        const value = raw[key];
+      Object.keys(raw).forEach(function (key) {
+        var cleanKey = String(key).split('/').pop().toLowerCase();
+        var value = raw[key];
         out[cleanKey] = value == null ? '' : String(value);
       });
 
       return out;
     }
 
+    // ─── Utilities ───
     function parseNum(str) {
-      const n = parseFloat(String(str ?? '').replace(/[$,%\s]/g, '').replace(/,/g, ''));
+      var n = parseFloat(String(str == null ? '' : str).replace(/[$,%\s]/g, '').replace(/,/g, ''));
       return isNaN(n) ? NaN : n;
     }
 
     function showErr(id, show) {
-      const el = document.getElementById(id);
+      var el = document.getElementById(id);
       if (!el) return;
       el.classList.toggle('visible', show);
     }
@@ -928,6 +1017,7 @@
         .replace(/'/g, '&#39;');
     }
 
+    // ─── Zapier ───
     function postToZapier(payload) {
       return fetch(ZAPIER_WEBHOOK_URL, {
         method: 'POST',
@@ -935,24 +1025,25 @@
         body: JSON.stringify(payload),
         mode: 'cors'
       })
-      .then(async (res) => {
-        const text = await res.text().catch(() => '');
-        console.log('Zapier status:', res.status);
-        if (text) console.log('Zapier response:', text);
-        return { ok: res.ok, status: res.status, text };
+      .then(function (res) {
+        return res.text().catch(function () { return ''; }).then(function (text) {
+          console.log('Zapier status:', res.status);
+          if (text) console.log('Zapier response:', text);
+          return { ok: res.ok, status: res.status, text: text };
+        });
       })
-      .catch((err) => {
+      .catch(function (err) {
         console.error('Zapier webhook failed', err);
         return { ok: false, status: 0, text: String(err) };
       });
     }
 
     function blobToBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
         reader.onloadend = function () {
-          const result = reader.result || '';
-          const base64 = String(result).includes(',')
+          var result = reader.result || '';
+          var base64 = String(result).includes(',')
             ? String(result).split(',')[1]
             : String(result);
           resolve(base64);
@@ -963,13 +1054,13 @@
     }
 
     function buildResultsPayload() {
-      const units = Number(S.units || 0);
-      const monthlyFee = Number(S.monthlyFee || 0);
-      const lienFee = Number(S.lienFee || 0);
-      const legalFee = Number(S.legalFee || 0);
-      const results = LAST_RESULTS || {};
-      const ent = results.ent || {};
-      const def = results.def || {};
+      var units = Number(S.units || 0);
+      var monthlyFee = Number(S.monthlyFee || 0);
+      var lienFee = Number(S.lienFee || 0);
+      var legalFee = Number(S.legalFee || 0);
+      var results = LAST_RESULTS || {};
+      var ent = results.ent || {};
+      var def = results.def || {};
 
       return {
         event_type: 'roi_calculation',
@@ -1001,101 +1092,95 @@
         tc_sales_ready: true,
         tc_report_type: S.reportType || 'portfolio_roi_calculator',
 
-        report_title: `TechCollect ROI Report - ${S.companyName || 'Your Company'}`,
+        report_title: 'TechCollect ROI Report - ' + (S.companyName || 'Your Company'),
         report_text: [
-          `Company: ${S.companyName || ''}`,
-          `Contact: ${[S.firstName, S.lastName].filter(Boolean).join(' ')}`,
-          `Email: ${S.email || ''}`,
-          `Job Title: ${S.jobTitle || ''}`,
-          `Doors Managed: ${units}`,
-          `Charges Fees: ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}`,
-          `Monthly Admin Fee: ${monthlyFee}`,
-          `Lien Profit: ${lienFee}`,
-          `Legal Transfer Fee: ${legalFee}`,
-          `Enterprise Annual Value: ${Math.round(Number(ent.total || 0))}`,
-          `Deferred Annual Value: ${Math.round(Number(def.total || 0))}`,
-          `Community Units: ${communityState.units || ''}`,
-          `Community Budget: ${communityState.budget || ''}`,
-          `Community Savings: ${communityState.annualSavings || ''}`
+          'Company: ' + (S.companyName || ''),
+          'Contact: ' + [S.firstName, S.lastName].filter(Boolean).join(' '),
+          'Email: ' + (S.email || ''),
+          'Job Title: ' + (S.jobTitle || ''),
+          'Doors Managed: ' + units,
+          'Charges Fees: ' + (S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')),
+          'Monthly Admin Fee: ' + monthlyFee,
+          'Lien Profit: ' + lienFee,
+          'Legal Transfer Fee: ' + legalFee,
+          'Enterprise Annual Value: ' + Math.round(Number(ent.total || 0)),
+          'Deferred Annual Value: ' + Math.round(Number(def.total || 0)),
+          'Community Units: ' + (communityState.units || ''),
+          'Community Budget: ' + (communityState.budget || ''),
+          'Community Savings: ' + (communityState.annualSavings || '')
         ].join('\n'),
 
-        report_html: `
-          <h1>TechCollect ROI Report</h1>
-          <p><strong>Company:</strong> ${escapeHtml(S.companyName || '')}</p>
-          <p><strong>Contact:</strong> ${escapeHtml([S.firstName, S.lastName].filter(Boolean).join(' '))}</p>
-          <p><strong>Email:</strong> ${escapeHtml(S.email || '')}</p>
-          <p><strong>Job Title:</strong> ${escapeHtml(S.jobTitle || '')}</p>
-          <hr>
-          <p><strong>Doors Managed:</strong> ${units.toLocaleString('en-US')}</p>
-          <p><strong>Charges Fees:</strong> ${S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')}</p>
-          <p><strong>Monthly Admin Fee:</strong> $${monthlyFee}</p>
-          <p><strong>Lien Profit:</strong> $${lienFee}</p>
-          <p><strong>Legal Transfer Fee:</strong> $${legalFee}</p>
-          <hr>
-          <p><strong>Enterprise Annual Value:</strong> $${Math.round(Number(ent.total || 0)).toLocaleString('en-US')}</p>
-          <p><strong>Deferred Annual Value:</strong> $${Math.round(Number(def.total || 0)).toLocaleString('en-US')}</p>
-        `
+        report_html:
+          '<h1>TechCollect ROI Report</h1>' +
+          '<p><strong>Company:</strong> ' + escapeHtml(S.companyName || '') + '</p>' +
+          '<p><strong>Contact:</strong> ' + escapeHtml([S.firstName, S.lastName].filter(Boolean).join(' ')) + '</p>' +
+          '<p><strong>Email:</strong> ' + escapeHtml(S.email || '') + '</p>' +
+          '<p><strong>Job Title:</strong> ' + escapeHtml(S.jobTitle || '') + '</p>' +
+          '<hr>' +
+          '<p><strong>Doors Managed:</strong> ' + units.toLocaleString('en-US') + '</p>' +
+          '<p><strong>Charges Fees:</strong> ' + (S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No')) + '</p>' +
+          '<p><strong>Monthly Admin Fee:</strong> $' + monthlyFee + '</p>' +
+          '<p><strong>Lien Profit:</strong> $' + lienFee + '</p>' +
+          '<p><strong>Legal Transfer Fee:</strong> $' + legalFee + '</p>' +
+          '<hr>' +
+          '<p><strong>Enterprise Annual Value:</strong> $' + Math.round(Number(ent.total || 0)).toLocaleString('en-US') + '</p>' +
+          '<p><strong>Deferred Annual Value:</strong> $' + Math.round(Number(def.total || 0)).toLocaleString('en-US') + '</p>'
       };
     }
 
-    async function sendPdfToZapier(doc, fileName, eventType) {
-      const pdfBlob = doc.output('blob');
-      const pdfBase64 = await blobToBase64(pdfBlob);
+    function sendPdfToZapier(doc, fileName, eventType) {
+      var pdfBlob = doc.output('blob');
+      return blobToBase64(pdfBlob).then(function (pdfBase64) {
+        var results = LAST_RESULTS || {};
+        var ent = results.ent || {};
+        var def = results.def || {};
 
-      const results = LAST_RESULTS || {};
-      const ent = results.ent || {};
-      const def = results.def || {};
+        var payload = {
+          event_type: eventType,
+          file_name: fileName,
+          mime_type: 'application/pdf',
+          pdf_base64: pdfBase64,
+          email: S.email || '',
+          first_name: S.firstName || '',
+          last_name: S.lastName || '',
+          company: S.companyName || '',
+          job_title: S.jobTitle || '',
+          tc_doors_managed: S.units || '',
+          tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
+          tc_monthly_admin_fee: S.monthlyFee || '',
+          tc_lien_profit: S.lienFee || '',
+          tc_legal_transfer_fee: S.legalFee || '',
+          tc_enterprise_annual_value: Math.round(Number(ent.total || 0)),
+          tc_deferred_annual_value: Math.round(Number(def.total || 0)),
+          tc_enterprise_value_per_door: S.units ? Number((Number(ent.total || 0) / S.units).toFixed(2)) : 0,
+          tc_deferred_value_per_door: S.units ? Number((Number(def.total || 0) / S.units).toFixed(2)) : 0,
+          tc_example_community_units: communityState.units || '',
+          tc_example_community_budget: communityState.budget || '',
+          tc_example_industry_cost_exposure: communityState.industryResidualCost || '',
+          tc_example_techcollect_cost_exposure: communityState.techcollectResidualCost || '',
+          tc_example_community_savings: communityState.annualSavings || '',
+          tc_example_savings_per_unit: communityState.units
+            ? Number((communityState.annualSavings / communityState.units).toFixed(2))
+            : '',
+          tc_calculator_last_run_date: new Date().toISOString(),
+          tc_sales_ready: true,
+          tc_report_type: eventType,
+          tc_report_url: '',
+          storage_target: CLOUD_STORAGE_BUCKET_LABEL,
+          drive_folder_url: GOOGLE_DRIVE_FOLDER_URL
+        };
 
-      const payload = {
-        event_type: eventType,
-        file_name: fileName,
-        mime_type: 'application/pdf',
-        pdf_base64: pdfBase64,
+        console.log('Sending PDF payload to Zapier:', {
+          event_type: payload.event_type,
+          file_name: payload.file_name,
+          pdf_base64_length: payload.pdf_base64.length
+        });
 
-        email: S.email || '',
-        first_name: S.firstName || '',
-        last_name: S.lastName || '',
-        company: S.companyName || '',
-        job_title: S.jobTitle || '',
-
-        tc_doors_managed: S.units || '',
-        tc_charges_delinquency_fees: S.chargesFees === null ? '' : (S.chargesFees ? 'Yes' : 'No'),
-        tc_monthly_admin_fee: S.monthlyFee || '',
-        tc_lien_profit: S.lienFee || '',
-        tc_legal_transfer_fee: S.legalFee || '',
-
-        tc_enterprise_annual_value: Math.round(Number(ent.total || 0)),
-        tc_deferred_annual_value: Math.round(Number(def.total || 0)),
-        tc_enterprise_value_per_door: S.units ? Number((Number(ent.total || 0) / S.units).toFixed(2)) : 0,
-        tc_deferred_value_per_door: S.units ? Number((Number(def.total || 0) / S.units).toFixed(2)) : 0,
-
-        tc_example_community_units: communityState.units || '',
-        tc_example_community_budget: communityState.budget || '',
-        tc_example_industry_cost_exposure: communityState.industryResidualCost || '',
-        tc_example_techcollect_cost_exposure: communityState.techcollectResidualCost || '',
-        tc_example_community_savings: communityState.annualSavings || '',
-        tc_example_savings_per_unit: communityState.units
-          ? Number((communityState.annualSavings / communityState.units).toFixed(2))
-          : '',
-
-        tc_calculator_last_run_date: new Date().toISOString(),
-        tc_sales_ready: true,
-        tc_report_type: eventType,
-        tc_report_url: '',
-
-        storage_target: CLOUD_STORAGE_BUCKET_LABEL,
-        drive_folder_url: GOOGLE_DRIVE_FOLDER_URL
-      };
-
-      console.log('Sending PDF payload to Zapier:', {
-        event_type: payload.event_type,
-        file_name: payload.file_name,
-        pdf_base64_length: payload.pdf_base64.length
+        return postToZapier(payload);
       });
-
-      return postToZapier(payload);
     }
 
+    // ─── Form logic ───
     function selectFees(yes) {
       S.chargesFees = yes;
       document.getElementById('opt-yes').className = 'fee-opt' + (yes ? ' selected-yes' : '');
@@ -1105,7 +1190,7 @@
     }
 
     function submitQ1() {
-      const v = parseNum(document.getElementById('inp-units').value);
+      var v = parseNum(document.getElementById('inp-units').value);
       if (isNaN(v) || v < 1) {
         showErr('err-units', true);
         return;
@@ -1124,11 +1209,11 @@
       _zapierSentForRun = false;
 
       if (S.chargesFees) {
-        const mf = parseNum(document.getElementById('inp-monthly').value);
-        const lf = parseNum(document.getElementById('inp-lien').value);
-        const lgl = parseNum(document.getElementById('inp-legal').value);
+        var mf = parseNum(document.getElementById('inp-monthly').value);
+        var lf = parseNum(document.getElementById('inp-lien').value);
+        var lgl = parseNum(document.getElementById('inp-legal').value);
 
-        let err = false;
+        var err = false;
         if (isNaN(mf) || mf < 0) { showErr('err-monthly', true); err = true; } else showErr('err-monthly', false);
         if (isNaN(lf) || lf < 0) { showErr('err-lien', true); err = true; } else showErr('err-lien', false);
         if (isNaN(lgl) || lgl < 0) { showErr('err-legal', true); err = true; } else showErr('err-legal', false);
@@ -1147,33 +1232,7 @@
       goTo('results');
     }
 
-    function calcPlan(units, monthlyFee, lienFee, legalFee, netProfit) {
-      const fileMonthsOcc = units * C.fileMonthsFactor;
-      const lienLegalOcc = units * C.lienLegalFactor;
-
-      const tcMarginAnnual = netProfit * fileMonthsOcc * C.frequency;
-      const collFeeAnnual = monthlyFee * fileMonthsOcc * C.frequency;
-      const lienAnnual = lienFee * lienLegalOcc * C.frequency;
-      const legalAnnual = legalFee * lienLegalOcc * C.frequency;
-
-      const assumedFTE = Math.ceil(units / C.ftePerUnits);
-      const labor = assumedFTE * C.avgSalaryPerFTE;
-
-      const total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual + labor;
-
-      return {
-        total,
-        tcMarginAnnual,
-        collFeeAnnual,
-        lienAnnual,
-        legalAnnual,
-        labor,
-        assumedFTE,
-        fileMonthsAnnual: fileMonthsOcc * C.frequency,
-        lienLegalAnnual: lienLegalOcc * C.frequency
-      };
-    }
-
+    // ─── Formatting ───
     function fmtBig(n) {
       if (n >= 1e6) return '$' + (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
       return '$' + Math.round(n).toLocaleString('en-US');
@@ -1191,89 +1250,134 @@
       return (rate * 100).toFixed(2) + '%';
     }
 
-    function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
-      const fmo = Math.round(ent.fileMonthsAnnual);
-      const lla = Math.round(ent.lienLegalAnnual);
-      const deliq = Math.round(units * C.delinqRate);
-      const rateLabel = fmtPct(C.delinqRate) + ' (national avg)';
-
-      const row = (label, sub, valHtml) => `
-        <div class="bk-row">
-          <div class="bk-label">${label}${sub ? `<small>${sub}</small>` : ''}</div>
-          <div class="bk-val${valHtml.includes('/') ? ' split' : ''}">${valHtml}</div>
-        </div>`;
-
-      const totalRow = (label, val) => `
-        <div class="bk-row total-row">
-          <div class="bk-label">${label}</div>
-          <div class="bk-val">${val}</div>
-        </div>`;
-
-      return `
-        <div class="bk-section-label">Portfolio inputs</div>
-        <div class="bk-row">
-          <div class="bk-label">Managed doors</div>
-          <div class="bk-val">${units.toLocaleString('en-US')}</div>
-        </div>
-        <div class="bk-row">
-          <div class="bk-label">Delinquency rate<small>${rateLabel} &times; ${C.frequency}&times;/yr</small></div>
-          <div class="bk-val">~${deliq.toLocaleString('en-US')} files/occurrence</div>
-        </div>
-        <div class="bk-row">
-          <div class="bk-label">Active file-months / year<small>through TechCollect AI resolution waterfall</small></div>
-          <div class="bk-val">~${fmo.toLocaleString('en-US')}</div>
-        </div>
-        <div class="bk-row" style="margin-bottom:14px">
-          <div class="bk-label">Lien &amp; legal files / year<small>files reaching 121+ days</small></div>
-          <div class="bk-val">~${lla.toLocaleString('en-US')}</div>
-        </div>
-
-        <div class="bk-section-label" style="margin-top:14px">Revenue components — Enterprise / Deferred</div>
-        ${row(
-          'TC Plan Margin',
-          `$${C.mgmtCharge - C.enterpriseTCFee} or $${C.mgmtCharge - C.deferredTCFee} net/file/mo &times; ~${fmo.toLocaleString('en-US')} file-months`,
-          `${fmtFull(ent.tcMarginAnnual)}&nbsp;/&nbsp;${fmtFull(def.tcMarginAnnual)}`
-        )}
-        ${monthlyFee > 0 ? row(
-          'Monthly Admin Fee (in addition to late fees)',
-          `$${monthlyFee}/mo &times; ~${fmo.toLocaleString('en-US')} active file-months/yr`,
-          fmtFull(ent.collFeeAnnual)
-        ) : row('Monthly Admin Fee (in addition to late fees)', 'No fee charged', '$0')}
-        ${row(
-          'Lien Profit',
-          `$${lienFee} &times; ~${lla.toLocaleString('en-US')} liens/yr — net of filing, labor, and attorney fees`,
-          fmtFull(ent.lienAnnual)
-        )}
-        ${row(
-          'Legal Transfer Revenue',
-          `$${legalFee} &times; ~${lla.toLocaleString('en-US')} legal transfers/yr`,
-          fmtFull(ent.legalAnnual)
-        )}
-        ${row(
-          'Labor Savings',
-          `${ent.assumedFTE} FTE &times; $${C.avgSalaryPerFTE.toLocaleString('en-US')}/yr`,
-          fmtFull(ent.labor)
-        )}
-        ${totalRow('Enterprise Annual Total', fmtFull(ent.total))}
-        ${totalRow('Deferred Annual Total', fmtFull(def.total))}
-
-        <div class="bk-note">
-          Lien profit shown above is treated as net of filing, labor, and attorney fees.
-          Management company charge is $${C.mgmtCharge}/file/mo. TechCollect fee is
-          $${C.enterpriseTCFee}/file/mo on Enterprise and $${C.deferredTCFee}/file/mo on Deferred.
-          Labor savings assumes ${C.ftePerUnits.toLocaleString('en-US')} units per FTE at $${C.avgSalaryPerFTE.toLocaleString('en-US')}/yr.
-        </div>
-      `;
+    function fmtN(n) {
+      return Math.round(n).toLocaleString('en-US');
     }
 
+    // ─── Breakdown HTML ───
+    function breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee) {
+      var wf = ent.wf;
+      var fmo = Math.round(ent.fileMonthsAnnual);
+      var lla = Math.round(ent.legalFilesAnnual);
+      var delinq = Math.round(wf.delinquencies);
+      var rateLabel = fmtPct(C.delinqRate) + ' (national avg)';
+      var tcResLabel = Math.round(wf.resolutionRate * 100) + '%';
+      var legalPct = Math.round(C.legalRate * 100) + '%';
+
+      var row = function (label, sub, valHtml) {
+        return '<div class="bk-row">' +
+          '<div class="bk-label">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</div>' +
+          '<div class="bk-val' + (valHtml.indexOf('/') !== -1 ? ' split' : '') + '">' + valHtml + '</div>' +
+          '</div>';
+      };
+
+      var totalRow = function (label, val) {
+        return '<div class="bk-row total-row">' +
+          '<div class="bk-label">' + label + '</div>' +
+          '<div class="bk-val">' + val + '</div>' +
+          '</div>';
+      };
+
+      // Waterfall table
+      var wfRows = '';
+      for (var i = 0; i < wf.stages.length; i++) {
+        var st = wf.stages[i];
+        wfRows +=
+          '<tr>' +
+          '<td>' + st.label + '</td>' +
+          '<td>' + Math.round(st.rate * 100) + '%</td>' +
+          '<td>' + fmtN(st.filesActive) + '</td>' +
+          '<td class="wf-resolved">' + fmtN(st.resolved) + '</td>' +
+          '<td class="wf-remaining">' + fmtN(st.remaining) + '</td>' +
+          '</tr>';
+      }
+      wfRows +=
+        '<tr>' +
+        '<td>Remaining for legal</td>' +
+        '<td>' + legalPct + '</td>' +
+        '<td></td>' +
+        '<td></td>' +
+        '<td class="wf-legal">' + fmtN(wf.legalFiles) + '</td>' +
+        '</tr>';
+
+      var waterfallTable =
+        '<table class="wf-table">' +
+        '<tr><th>Stage</th><th>Rate</th><th>Active</th><th>Resolved</th><th>Remaining</th></tr>' +
+        wfRows +
+        '</table>';
+
+      return '' +
+        '<div class="bk-section-label">Portfolio inputs</div>' +
+        '<div class="bk-row">' +
+          '<div class="bk-label">Managed doors</div>' +
+          '<div class="bk-val">' + units.toLocaleString('en-US') + '</div>' +
+        '</div>' +
+        '<div class="bk-row">' +
+          '<div class="bk-label">Delinquency rate<small>' + rateLabel + ' \u00d7 ' + C.frequency + '\u00d7/yr</small></div>' +
+          '<div class="bk-val">~' + delinq.toLocaleString('en-US') + ' files/occurrence</div>' +
+        '</div>' +
+
+        '<div class="bk-section-label" style="margin-top:16px">Resolution waterfall (per occurrence)</div>' +
+        waterfallTable +
+
+        '<div class="bk-row">' +
+          '<div class="bk-label">Active file-months / year<small>sum of files active at each stage \u00d7 ' + C.frequency + '\u00d7/yr</small></div>' +
+          '<div class="bk-val">~' + fmo.toLocaleString('en-US') + '</div>' +
+        '</div>' +
+        '<div class="bk-row" style="margin-bottom:14px">' +
+          '<div class="bk-label">Lien &amp; legal files / year<small>' + legalPct + ' unresolved \u00d7 ' + C.frequency + '\u00d7/yr</small></div>' +
+          '<div class="bk-val">~' + lla.toLocaleString('en-US') + '</div>' +
+        '</div>' +
+
+        '<div class="bk-section-label" style="margin-top:14px">Revenue components \u2014 Enterprise / Deferred</div>' +
+        row(
+          'TC Plan Margin',
+          '$' + (C.mgmtCharge - C.enterpriseTCFee) + ' or $' + (C.mgmtCharge - C.deferredTCFee) + ' net/file/mo \u00d7 ~' + fmo.toLocaleString('en-US') + ' file-months',
+          fmtFull(ent.tcMarginAnnual) + '&nbsp;/&nbsp;' + fmtFull(def.tcMarginAnnual)
+        ) +
+        (monthlyFee > 0 ? row(
+          'Monthly Admin Fee (in addition to late fees)',
+          '$' + monthlyFee + '/mo \u00d7 ~' + fmo.toLocaleString('en-US') + ' active file-months/yr',
+          fmtFull(ent.collFeeAnnual)
+        ) : row('Monthly Admin Fee (in addition to late fees)', 'No fee charged', '$0')) +
+        row(
+          'Lien Profit',
+          '$' + lienFee + ' \u00d7 ~' + lla.toLocaleString('en-US') + ' liens/yr \u2014 net of filing, labor, and attorney fees',
+          fmtFull(ent.lienAnnual)
+        ) +
+        row(
+          'Legal Transfer Revenue',
+          '$' + legalFee + ' \u00d7 ~' + lla.toLocaleString('en-US') + ' legal transfers/yr',
+          fmtFull(ent.legalAnnual)
+        ) +
+        row(
+          'Labor Savings',
+          ent.assumedFTE + ' FTE \u00d7 $' + C.avgSalaryPerFTE.toLocaleString('en-US') + '/yr',
+          fmtFull(ent.labor)
+        ) +
+        totalRow('Enterprise Annual Total', fmtFull(ent.total)) +
+        totalRow('Deferred Annual Total', fmtFull(def.total)) +
+
+        '<div class="bk-note">' +
+          'Lien profit shown above is treated as net of filing, labor, and attorney fees. ' +
+          'Management company charge is $' + C.mgmtCharge + '/file/mo. TechCollect fee is ' +
+          '$' + C.enterpriseTCFee + '/file/mo on Enterprise and $' + C.deferredTCFee + '/file/mo on Deferred. ' +
+          'Labor savings assumes ' + C.ftePerUnits.toLocaleString('en-US') + ' units per FTE at $' + C.avgSalaryPerFTE.toLocaleString('en-US') + '/yr.' +
+        '</div>';
+    }
+
+    // ─── Render results ───
     function renderResults() {
-      const { units, monthlyFee, lienFee, legalFee } = S;
+      var units = S.units;
+      var monthlyFee = S.monthlyFee;
+      var lienFee = S.lienFee;
+      var legalFee = S.legalFee;
 
-      const entNet = C.mgmtCharge - C.enterpriseTCFee;
-      const defNet = C.mgmtCharge - C.deferredTCFee;
+      var entNet = C.mgmtCharge - C.enterpriseTCFee;
+      var defNet = C.mgmtCharge - C.deferredTCFee;
 
-      const ent = calcPlan(units, monthlyFee, lienFee, legalFee, entNet);
-      const def = calcPlan(units, monthlyFee, lienFee, legalFee, defNet);
+      var ent = calcPlan(units, monthlyFee, lienFee, legalFee, entNet);
+      var def = calcPlan(units, monthlyFee, lienFee, legalFee, defNet);
 
       document.getElementById('r-doors-label').textContent = units.toLocaleString('en-US') + ' doors';
       document.getElementById('r-ent-value').textContent = fmtBig(ent.total);
@@ -1282,7 +1386,11 @@
       document.getElementById('r-def-door').textContent = fmtUnitMo(def.total, units);
       document.getElementById('r-breakdown').innerHTML = breakdownHTML(ent, def, units, monthlyFee, lienFee, legalFee);
 
-      LAST_RESULTS = { ent, def };
+      // Update comparison box dynamically from waterfall
+      document.getElementById('r-industry-rate').textContent = Math.round(C.industryResolutionRate * 100) + '%';
+      document.getElementById('r-tc-rate').textContent = Math.round(C.techcollectResolutionRate * 100) + '%';
+
+      LAST_RESULTS = { ent: ent, def: def };
 
       if (!_zapierSentForRun) {
         postToZapier(buildResultsPayload());
@@ -1336,8 +1444,8 @@
       document.getElementById('opt-no').className = 'fee-opt';
       document.getElementById('fee-fields').classList.remove('open');
 
-      ['err-units','err-fee-choice','err-monthly','err-lien','err-legal','err-community-units','err-community-budget'].forEach(id => {
-        const el = document.getElementById(id);
+      ['err-units','err-fee-choice','err-monthly','err-lien','err-legal','err-community-units','err-community-budget'].forEach(function (id) {
+        var el = document.getElementById(id);
         if (el) el.classList.remove('visible');
       });
 
@@ -1347,7 +1455,7 @@
       goTo('welcome');
     }
 
-
+    // ─── Community savings ───
     function getCommunityModeledReductionFactor() {
       return C.techcollectLegalCostExample / C.conventionalLegalCostExample;
     }
@@ -1356,34 +1464,34 @@
       return 1 - getCommunityModeledReductionFactor();
     }
 
-    document.addEventListener('keydown', e => {
+    document.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
-      const active = document.querySelector('.screen.active');
+      var active = document.querySelector('.screen.active');
       if (!active) return;
       if (active.id === 'screen-q1') submitQ1();
       if (active.id === 'screen-q3') submitQ3();
     });
 
     function calculateCommunitySavings() {
-      const units = parseNum(document.getElementById('community-units').value);
-      const budget = parseNum(document.getElementById('community-budget').value);
+      var units = parseNum(document.getElementById('community-units').value);
+      var budget = parseNum(document.getElementById('community-budget').value);
 
-      let hasErr = false;
+      var hasErr = false;
       if (isNaN(units) || units < 1) { showErr('err-community-units', true); hasErr = true; } else showErr('err-community-units', false);
       if (isNaN(budget) || budget < 1) { showErr('err-community-budget', true); hasErr = true; } else showErr('err-community-budget', false);
       if (hasErr) return;
 
-      const modeledReductionFactor = getCommunityModeledReductionFactor();
-      const industryResidualCost = budget;
-      const techcollectResidualCost = budget * modeledReductionFactor;
-      const annualSavings = industryResidualCost - techcollectResidualCost;
+      var modeledReductionFactor = getCommunityModeledReductionFactor();
+      var industryResidualCost = budget;
+      var techcollectResidualCost = budget * modeledReductionFactor;
+      var annualSavings = industryResidualCost - techcollectResidualCost;
 
       communityState = {
-        units,
-        budget,
-        industryResidualCost,
-        techcollectResidualCost,
-        annualSavings
+        units: units,
+        budget: budget,
+        industryResidualCost: industryResidualCost,
+        techcollectResidualCost: techcollectResidualCost,
+        annualSavings: annualSavings
       };
 
       document.getElementById('industry-result').textContent = fmtFull(industryResidualCost);
@@ -1393,37 +1501,38 @@
       document.getElementById('industry-bar-label').textContent = fmtFull(industryResidualCost);
       document.getElementById('techcollect-bar-label').textContent = fmtFull(techcollectResidualCost);
 
-      const maxVal = Math.max(industryResidualCost, techcollectResidualCost, 1);
-      const industryPct = (industryResidualCost / maxVal) * 100;
-      const techcollectPct = (techcollectResidualCost / maxVal) * 100;
+      var maxVal = Math.max(industryResidualCost, techcollectResidualCost, 1);
+      var industryPct = (industryResidualCost / maxVal) * 100;
+      var techcollectPct = (techcollectResidualCost / maxVal) * 100;
 
-      const resultsWrap = document.getElementById('community-results');
+      var resultsWrap = document.getElementById('community-results');
       resultsWrap.classList.add('active');
 
-      requestAnimationFrame(() => {
+      requestAnimationFrame(function () {
         document.getElementById('industry-bar').style.width = industryPct + '%';
         document.getElementById('techcollect-bar').style.width = techcollectPct + '%';
       });
 
-      const savingsPerUnit = annualSavings / units;
-      const savingsPct = annualSavings / industryResidualCost;
+      var savingsPerUnit = annualSavings / units;
+      var savingsPct = annualSavings / industryResidualCost;
       document.getElementById('community-note').innerHTML =
-        `For a <strong>${units.toLocaleString('en-US')}-unit</strong> community with a current annual collections budget of <strong>${fmtFull(budget)}</strong>, ` +
-        `this model estimates annual legal fees of <strong>${fmtFull(techcollectResidualCost)}</strong> with TechCollect versus a current baseline of <strong>${fmtFull(industryResidualCost)}</strong>, ` +
-        `for potential annual savings of <strong>${fmtFull(annualSavings)}</strong> ` +
-        `or roughly <strong>$${savingsPerUnit.toFixed(2)} per unit</strong> (<strong>${(savingsPct * 100).toFixed(0)}%</strong>), based on the spreadsheet example's modeled legal-fee reduction.`;
+        'For a <strong>' + units.toLocaleString('en-US') + '-unit</strong> community with a current annual collections budget of <strong>' + fmtFull(budget) + '</strong>, ' +
+        'this model estimates annual legal fees of <strong>' + fmtFull(techcollectResidualCost) + '</strong> with TechCollect versus a current baseline of <strong>' + fmtFull(industryResidualCost) + '</strong>, ' +
+        'for potential annual savings of <strong>' + fmtFull(annualSavings) + '</strong> ' +
+        'or roughly <strong>$' + savingsPerUnit.toFixed(2) + ' per unit</strong> (<strong>' + (savingsPct * 100).toFixed(0) + '%</strong>), based on the spreadsheet example\u2019s modeled legal-fee reduction.';
 
       resultsWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    let _pdfLibsState = 'idle';
-    let _pdfOnReady = null;
+    // ─── PDF libs ───
+    var _pdfLibsState = 'idle';
+    var _pdfOnReady = null;
 
     function loadPDFLibs(cb) {
       if (cb) _pdfOnReady = cb;
       if (_pdfLibsState === 'ready') {
         if (_pdfOnReady) {
-          const fn = _pdfOnReady;
+          var fn = _pdfOnReady;
           _pdfOnReady = null;
           fn();
         }
@@ -1433,7 +1542,7 @@
       _pdfLibsState = 'loading';
 
       function loadScript(src, onload) {
-        const s = document.createElement('script');
+        var s = document.createElement('script');
         s.src = src;
         s.onload = onload;
         s.onerror = function() { console.warn('PDF lib failed to load:', src); };
@@ -1444,7 +1553,7 @@
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js', function() {
           _pdfLibsState = 'ready';
           if (_pdfOnReady) {
-            const fn = _pdfOnReady;
+            var fn = _pdfOnReady;
             _pdfOnReady = null;
             fn();
           }
@@ -1452,7 +1561,8 @@
       });
     }
 
-    async function generatePDF() {
+    // ─── Portfolio PDF ───
+    function generatePDF() {
       if (_pdfLibsState !== 'ready') {
         loadPDFLibs(generatePDF);
         return;
@@ -1462,13 +1572,13 @@
         return;
       }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-      const PAGE_W = 210;
-      const MARGIN = 14;
-      const CONTENT = PAGE_W - MARGIN * 2;
-      const BRAND = '#150d5d';
+      var PAGE_W = 210;
+      var MARGIN = 14;
+      var CONTENT = PAGE_W - MARGIN * 2;
+      var BRAND = '#150d5d';
 
       function hexToRGB(hex) {
         return [
@@ -1477,39 +1587,37 @@
           parseInt(hex.slice(5,7),16)
         ];
       }
-      function setFill(hex) { doc.setFillColor(...hexToRGB(hex)); }
-      function setTextColor(hex) { doc.setTextColor(...hexToRGB(hex)); }
+      function setFill(hex) { doc.setFillColor.apply(doc, hexToRGB(hex)); }
+      function setTextColor(hex) { doc.setTextColor.apply(doc, hexToRGB(hex)); }
       function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
       function pct(r) { return (r * 100).toFixed(2) + '%'; }
 
-      const company = (S.companyName || '').trim() || 'Your Company';
-      const ent = calcPlan(S.units, S.monthlyFee, S.lienFee, S.legalFee, C.mgmtCharge - C.enterpriseTCFee);
-      const def = calcPlan(S.units, S.monthlyFee, S.lienFee, S.legalFee, C.mgmtCharge - C.deferredTCFee);
-      const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-      const safeName = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
-      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      var company = (S.companyName || '').trim() || 'Your Company';
+      var ent = calcPlan(S.units, S.monthlyFee, S.lienFee, S.legalFee, C.mgmtCharge - C.enterpriseTCFee);
+      var def = calcPlan(S.units, S.monthlyFee, S.lienFee, S.legalFee, C.mgmtCharge - C.deferredTCFee);
+      var today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+      var safeName = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+      var dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
 
-      let y = 0;
+      var y = 0;
 
+      // Header
       setFill(BRAND);
       doc.rect(0, 0, PAGE_W, 42, 'F');
-
       setTextColor('#ffffff');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
       doc.text('TechCollect + ' + company, MARGIN, 16);
-
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       doc.text('Estimated Delinquency Workflow Impact Report', MARGIN, 25);
-
       doc.setFontSize(9);
       doc.setTextColor(200, 195, 240);
-      doc.text('Generated ' + today + ' · www.techcollect.ai', MARGIN, 34);
+      doc.text('Generated ' + today + ' \u00b7 www.techcollect.ai', MARGIN, 34);
 
+      // Plan cards
       y = 52;
-      const cardW = (CONTENT - 6) / 2;
-
+      var cardW = (CONTENT - 6) / 2;
       setFill('#1e1580');
       doc.roundedRect(MARGIN, y, cardW, 32, 3, 3, 'F');
       setTextColor('#a5b4fc');
@@ -1520,7 +1628,7 @@
       doc.setFontSize(17);
       doc.text(money(ent.total), MARGIN + 5, y + 20);
 
-      const cx2 = MARGIN + cardW + 6;
+      var cx2 = MARGIN + cardW + 6;
       setFill('#ede9fe');
       doc.roundedRect(cx2, y, cardW, 32, 3, 3, 'F');
       setTextColor('#5b21b6');
@@ -1532,13 +1640,51 @@
       doc.text(money(def.total), cx2 + 5, y + 20);
 
       y += 40;
-
       setTextColor('#555577');
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Based on ${S.units.toLocaleString('en-US')} managed doors`, MARGIN, y);
+      doc.text('Based on ' + S.units.toLocaleString('en-US') + ' managed doors', MARGIN, y);
       y += 8;
 
+      // Waterfall table
+      setTextColor(BRAND);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Resolution Waterfall (per occurrence)', MARGIN, y);
+      y += 4;
+
+      var wfBody = [];
+      for (var i = 0; i < ent.wf.stages.length; i++) {
+        var st = ent.wf.stages[i];
+        wfBody.push([
+          st.label,
+          Math.round(st.rate * 100) + '%',
+          fmtN(st.filesActive),
+          fmtN(st.resolved),
+          fmtN(st.remaining)
+        ]);
+      }
+      wfBody.push([
+        'Remaining for legal',
+        Math.round(C.legalRate * 100) + '%',
+        '',
+        '',
+        fmtN(ent.wf.legalFiles)
+      ]);
+
+      doc.autoTable({
+        startY: y,
+        margin: { left: MARGIN, right: MARGIN },
+        tableWidth: CONTENT,
+        head: [['Stage', 'Rate', 'Active', 'Resolved', 'Remaining']],
+        body: wfBody,
+        headStyles: { fillColor: hexToRGB(BRAND), textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8, textColor: [40,40,80] },
+        alternateRowStyles: { fillColor: [248,247,255] }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // Revenue breakdown
       setTextColor(BRAND);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
@@ -1563,9 +1709,9 @@
         footStyles: { fillColor: [240,238,252], textColor: hexToRGB(BRAND), fontStyle: 'bold', fontSize: 9 },
         alternateRowStyles: { fillColor: [248,247,255] }
       });
-
       y = doc.lastAutoTable.finalY + 8;
 
+      // Key assumptions
       setTextColor(BRAND);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
@@ -1580,22 +1726,23 @@
           ['Managed Doors', S.units.toLocaleString('en-US')],
           ['Delinquency Rate', pct(C.delinqRate)],
           ['Recurrence Frequency', C.frequency + '\u00d7 per year'],
-          ['Resolution Rate (TechCollect)', (C.techcollectResolutionRate * 100).toFixed(0) + '%'],
+          ['Resolution Rate (TechCollect)', Math.round(C.techcollectResolutionRate * 100) + '%'],
           ['Labor Savings', ent.assumedFTE + ' FTE \u00d7 $' + C.avgSalaryPerFTE.toLocaleString('en-US') + '/yr'],
         ],
         bodyStyles: { fontSize: 8.5, textColor: [40,40,80] },
         columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
       });
 
-      const fileName = `TechCollect_Portfolio_ROI_${safeName}_${dateStr}.pdf`;
+      var fileName = 'TechCollect_Portfolio_ROI_' + safeName + '_' + dateStr + '.pdf';
 
       sendPdfToZapier(doc, fileName, 'portfolio_pdf')
-        .catch(err => console.error('Portfolio PDF webhook failed', err));
+        .catch(function (err) { console.error('Portfolio PDF webhook failed', err); });
 
       doc.save(fileName);
     }
 
-    async function generateCommunityPDF() {
+    // ─── Community PDF ───
+    function generateCommunityPDF() {
       if (_pdfLibsState !== 'ready') {
         loadPDFLibs(generateCommunityPDF);
         return;
@@ -1609,13 +1756,13 @@
         return;
       }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-      const PAGE_W = 210;
-      const MARGIN = 14;
-      const CONTENT = PAGE_W - MARGIN * 2;
-      const BRAND = '#150d5d';
+      var PAGE_W = 210;
+      var MARGIN = 14;
+      var CONTENT = PAGE_W - MARGIN * 2;
+      var BRAND = '#150d5d';
 
       function hexToRGB(hex) {
         return [
@@ -1624,36 +1771,32 @@
           parseInt(hex.slice(5,7),16)
         ];
       }
-      function setFill(hex) { doc.setFillColor(...hexToRGB(hex)); }
-      function setTextColor(hex) { doc.setTextColor(...hexToRGB(hex)); }
+      function setFill(hex) { doc.setFillColor.apply(doc, hexToRGB(hex)); }
+      function setTextColor(hex) { doc.setTextColor.apply(doc, hexToRGB(hex)); }
       function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
-      function pct(r) { return (r * 100).toFixed(2) + '%'; }
 
-      const company = (S.companyName || '').trim() || 'Your Company';
-      const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-      const safeName = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
-      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      var company = (S.companyName || '').trim() || 'Your Company';
+      var today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+      var safeName = company.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+      var dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
 
-      let y = 0;
+      var y = 0;
 
       setFill(BRAND);
       doc.rect(0, 0, PAGE_W, 42, 'F');
-
       setTextColor('#ffffff');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
       doc.text('TechCollect + ' + company, MARGIN, 16);
-
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       doc.text('Example Community Savings Report', MARGIN, 25);
-
       doc.setFontSize(9);
       doc.setTextColor(200, 195, 240);
-      doc.text('Generated ' + today + ' · www.techcollect.ai', MARGIN, 34);
+      doc.text('Generated ' + today + ' \u00b7 www.techcollect.ai', MARGIN, 34);
 
       y = 52;
-      const cardW = (CONTENT - 6) / 3;
+      var cardW = (CONTENT - 6) / 3;
 
       setFill('#f3f0ff');
       doc.roundedRect(MARGIN, y, cardW, 30, 3, 3, 'F');
@@ -1665,7 +1808,7 @@
       doc.setFontSize(15);
       doc.text(money(communityState.industryResidualCost), MARGIN + 5, y + 19);
 
-      const x2 = MARGIN + cardW + 3;
+      var x2 = MARGIN + cardW + 3;
       setFill('#ede9fe');
       doc.roundedRect(x2, y, cardW, 30, 3, 3, 'F');
       setTextColor('#5b21b6');
@@ -1676,7 +1819,7 @@
       doc.setFontSize(15);
       doc.text(money(communityState.techcollectResidualCost), x2 + 5, y + 19);
 
-      const x3 = x2 + cardW + 3;
+      var x3 = x2 + cardW + 3;
       setFill('#150d5d');
       doc.roundedRect(x3, y, cardW, 30, 3, 3, 'F');
       setTextColor('#c4b5fd');
@@ -1688,7 +1831,6 @@
       doc.text(money(communityState.annualSavings), x3 + 5, y + 19);
 
       y += 40;
-
       setTextColor(BRAND);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
@@ -1711,15 +1853,14 @@
       });
 
       y = doc.lastAutoTable.finalY + 8;
-
       setTextColor(BRAND);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.text('Cost Exposure Comparison', MARGIN, y);
       y += 8;
 
-      const barMax = Math.max(communityState.industryResidualCost, communityState.techcollectResidualCost, 1);
-      const barW = CONTENT - 50;
+      var barMax = Math.max(communityState.industryResidualCost, communityState.techcollectResidualCost, 1);
+      var barW = CONTENT - 50;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
@@ -1749,14 +1890,14 @@
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.text(
-        `This example community model treats the entered collections budget as the community's current annual legal fee baseline and estimates the TechCollect outcome using the modeled reduction from the spreadsheet example.`,
+        'This example community model treats the entered collections budget as the community\u2019s current annual legal fee baseline and estimates the TechCollect outcome using the modeled reduction from the spreadsheet example.',
         MARGIN, y, { maxWidth: CONTENT }
       );
 
-      const fileName = `TechCollect_Community_Savings_${safeName}_${dateStr}.pdf`;
+      var fileName = 'TechCollect_Community_Savings_' + safeName + '_' + dateStr + '.pdf';
 
       sendPdfToZapier(doc, fileName, 'community_pdf')
-        .catch(err => console.error('Community PDF webhook failed', err));
+        .catch(function (err) { console.error('Community PDF webhook failed', err); });
 
       doc.save(fileName);
     }
