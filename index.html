@@ -1,3 +1,4 @@
+<!-- Updated to match Excel Detail waterfall model – verified -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -544,7 +545,7 @@
             </div>
             <div class="fee-opt" id="opt-no" onclick="selectFees(false)">
               <div class="opt-title">No</div>
-              <div class="opt-sub">I don’t charge these fees today</div>
+              <div class="opt-sub">I don't charge these fees today</div>
             </div>
           </div>
 
@@ -596,7 +597,7 @@
           <div class="results-head">
             <div class="eyebrow">Estimated Annual Value Created</div>
             <h2>
-              Here’s what your
+              Here's what your
               <span class="units-highlight" id="r-doors-label">portfolio</span>
               is worth with TechCollect
             </h2>
@@ -627,8 +628,8 @@
               </div>
               <div class="comparison-card techcollect">
                 <div class="comparison-title">TechCollect Modeled Rate</div>
-                <div class="comparison-value">90%</div>
-                <div class="comparison-sub">Modeled resolution rate</div>
+                <div class="comparison-value">88%</div>
+                <div class="comparison-sub">120+ day cumulative resolution rate</div>
               </div>
             </div>
           </div>
@@ -657,7 +658,7 @@
           <div class="community-section">
             <h3>Example Community Savings</h3>
             <p class="community-intro">
-              To see how much a typical community will save, enter the number of units and its current annual budget for collections. We’ll compare industry-standard outcomes against TechCollect’s modeled resolution rates to estimate annual savings.
+              To see how much a typical community will save, enter the number of units and its current annual budget for collections. We'll compare industry-standard outcomes against TechCollect's modeled resolution rates to estimate annual savings.
             </p>
 
             <div class="community-grid">
@@ -754,15 +755,17 @@
     </div>
 
     <div class="footnote">
-      Estimates assume 8.42% national average delinquency rate, 2× annual
-      occurrence frequency, and TechCollect’s AI resolution waterfall
-      (48% industry average vs. 90% TechCollect modeled resolution rate).
+      Estimates assume 8.42% national average delinquency rate, 2&times; annual
+      occurrence frequency, and TechCollect's AI resolution waterfall
+      (48% industry average vs. 88% TechCollect modeled resolution rate).
+      Includes estimated labor savings of 1 FTE per 10,000 units.
       Community savings view treats the entered annual collections budget as the current baseline and estimates the TechCollect outcome using the modeled legal-fee reduction from the spreadsheet example.
       Actual results may vary.
     </div>
   </div>
 
   <script>
+    // Updated to match Excel Detail waterfall model – verified
     const C = {
       mgmtCharge: 99,
       enterpriseTCFee: 35,
@@ -771,15 +774,15 @@
       defDemandFee: 0,
       defLienProfit: 275,
       defLegalFee: 150,
-      fileMonthsFactor: 0.1743,
-      demandFactor: 0.0152,
-      lienLegalFactor: 0.0042,
+      fileMonthsFactor: 0.180188,   // Derived from Excel waterfall: 1801.88 / 10000
+      demandFactor: 0.021892,       // Derived from Excel waterfall: 218.92 / 10000
+      lienLegalFactor: 0.010104,    // Derived from Excel waterfall: 101.04 / 10000
       frequency: 2,
       avgSalaryPerFTE: 50000,
       ftePerUnits: 10000,
       delinqRate: 0.0842,
       industryResolutionRate: 0.48,
-      techcollectResolutionRate: 0.90,
+      techcollectResolutionRate: 0.88, // Excel waterfall: 48+16+10+14 = 88% resolved
       conventionalLegalCostExample: 19500,
       techcollectLegalCostExample: 3390
     };
@@ -1156,7 +1159,7 @@
       const assumedFTE = Math.ceil(units / C.ftePerUnits);
       const labor = assumedFTE * C.avgSalaryPerFTE;
 
-      const total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual;
+      const total = tcMarginAnnual + collFeeAnnual + lienAnnual + legalAnnual + labor;
 
       return {
         total,
@@ -1213,7 +1216,7 @@
           <div class="bk-val">${units.toLocaleString('en-US')}</div>
         </div>
         <div class="bk-row">
-          <div class="bk-label">Delinquency rate<small>${rateLabel} × ${C.frequency}×/yr</small></div>
+          <div class="bk-label">Delinquency rate<small>${rateLabel} &times; ${C.frequency}&times;/yr</small></div>
           <div class="bk-val">~${deliq.toLocaleString('en-US')} files/occurrence</div>
         </div>
         <div class="bk-row">
@@ -1228,23 +1231,28 @@
         <div class="bk-section-label" style="margin-top:14px">Revenue components — Enterprise / Deferred</div>
         ${row(
           'TC Plan Margin',
-          `$${C.mgmtCharge - C.enterpriseTCFee} or $${C.mgmtCharge - C.deferredTCFee} net/file/mo × ~${fmo.toLocaleString('en-US')} file-months`,
+          `$${C.mgmtCharge - C.enterpriseTCFee} or $${C.mgmtCharge - C.deferredTCFee} net/file/mo &times; ~${fmo.toLocaleString('en-US')} file-months`,
           `${fmtFull(ent.tcMarginAnnual)}&nbsp;/&nbsp;${fmtFull(def.tcMarginAnnual)}`
         )}
         ${monthlyFee > 0 ? row(
           'Monthly Admin Fee (in addition to late fees)',
-          `$${monthlyFee}/mo × ~${fmo.toLocaleString('en-US')} active file-months/yr`,
+          `$${monthlyFee}/mo &times; ~${fmo.toLocaleString('en-US')} active file-months/yr`,
           fmtFull(ent.collFeeAnnual)
         ) : row('Monthly Admin Fee (in addition to late fees)', 'No fee charged', '$0')}
         ${row(
           'Lien Profit',
-          `$${lienFee} × ~${lla.toLocaleString('en-US')} liens/yr — net of filing, labor, and attorney fees`,
+          `$${lienFee} &times; ~${lla.toLocaleString('en-US')} liens/yr — net of filing, labor, and attorney fees`,
           fmtFull(ent.lienAnnual)
         )}
         ${row(
           'Legal Transfer Revenue',
-          `$${legalFee} × ~${lla.toLocaleString('en-US')} legal transfers/yr`,
+          `$${legalFee} &times; ~${lla.toLocaleString('en-US')} legal transfers/yr`,
           fmtFull(ent.legalAnnual)
+        )}
+        ${row(
+          'Labor Savings',
+          `${ent.assumedFTE} FTE &times; $${C.avgSalaryPerFTE.toLocaleString('en-US')}/yr`,
+          fmtFull(ent.labor)
         )}
         ${totalRow('Enterprise Annual Total', fmtFull(ent.total))}
         ${totalRow('Deferred Annual Total', fmtFull(def.total))}
@@ -1253,6 +1261,7 @@
           Lien profit shown above is treated as net of filing, labor, and attorney fees.
           Management company charge is $${C.mgmtCharge}/file/mo. TechCollect fee is
           $${C.enterpriseTCFee}/file/mo on Enterprise and $${C.deferredTCFee}/file/mo on Deferred.
+          Labor savings assumes ${C.ftePerUnits.toLocaleString('en-US')} units per FTE at $${C.avgSalaryPerFTE.toLocaleString('en-US')}/yr.
         </div>
       `;
     }
@@ -1546,6 +1555,7 @@
           ['Monthly Admin Fee (in addition to late fees)', money(ent.collFeeAnnual), money(def.collFeeAnnual)],
           ['Lien Profit (net of filing, labor, and attorney fees)', money(ent.lienAnnual), money(def.lienAnnual)],
           ['Legal Transfer Revenue', money(ent.legalAnnual), money(def.legalAnnual)],
+          ['Labor Savings', money(ent.labor), money(def.labor)],
         ],
         foot: [['Total Estimated Value', money(ent.total), money(def.total)]],
         headStyles: { fillColor: hexToRGB(BRAND), textColor: [255,255,255], fontStyle: 'bold', fontSize: 9 },
@@ -1569,7 +1579,9 @@
         body: [
           ['Managed Doors', S.units.toLocaleString('en-US')],
           ['Delinquency Rate', pct(C.delinqRate)],
-          ['Recurrence Frequency', C.frequency + '× per year'],
+          ['Recurrence Frequency', C.frequency + '\u00d7 per year'],
+          ['Resolution Rate (TechCollect)', (C.techcollectResolutionRate * 100).toFixed(0) + '%'],
+          ['Labor Savings', ent.assumedFTE + ' FTE \u00d7 $' + C.avgSalaryPerFTE.toLocaleString('en-US') + '/yr'],
         ],
         bodyStyles: { fontSize: 8.5, textColor: [40,40,80] },
         columnStyles: { 0: { fontStyle: 'bold', fillColor: [248,247,255] } }
